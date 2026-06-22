@@ -56,6 +56,14 @@ class ParsedEquation:
     dependent_variable: Optional[sp.Symbol]
     independent_variables: Tuple[sp.Symbol, ...]
 
+@dataclass(frozen=True)
+class ParsedCurve:
+    """Normalized representation of a user-entered parametric curve."""
+
+    coordinate_system: CoordinateSystem
+    x_expr: sp.Expr
+    y_expr: sp.Expr
+    z_expr: sp.Expr
 
 # Unicode and ASCII aliases commonly used by users.
 _ALIAS_MAP: Dict[str, str] = {
@@ -138,6 +146,41 @@ def _split_equation(expression: str) -> Tuple[str, str, bool]:
     if not lhs or not rhs:
         raise ValueError("Both sides of the equation must be non-empty.")
     return lhs, rhs, True
+
+def _split_curve(expression: str) -> Tuple[str, str, str]:
+    """Split on commas if present.
+
+    Returns
+    -------
+    x_expr, y_expr, z_expr
+    """
+
+    if expression[0] == "(" and expression[-1] == ")":
+        expression = expression[1:-1]
+    else:
+        raise ValueError("Wrong curve syntax.")
+
+    parts = []
+    current = []
+    depth = 0
+
+    for ch in expression:
+        if ch == ',' and depth == 0:
+            parts.append(''.join(current).strip())
+            current = []
+            continue
+        if ch == '(':
+            depth += 1
+        elif ch == ')':
+            depth -= 1
+        current.append(ch)
+
+    parts.append(''.join(current).strip())
+
+    if len(parts) != 3:
+        raise ValueError("Expected exactly 3 components")
+
+    return tuple(parts)
 
 
 def _detect_dependent_variable(
@@ -249,6 +292,39 @@ def parse_equation(expression: str, coordinate_system: CoordinateSystem) -> Pars
         independent_variables=independent_variables,
     )
 
+def parse_curve(expression: str, coordinate_system: CoordinateSystem) -> ParsedCurve:
+    """Parse and normalize a graphed curve.
+
+    Parameters
+    ----------
+    expression:
+        User-entered curve parametric vectorial equation.
+    coordinate_system:
+        The coordinate system the user intends to work in.
+
+    Returns
+    -------
+    ParsedCurve
+        Structured equation metadata and SymPy expressions.
+    """
+
+    if not expression or not expression.strip():
+        raise ValueError("Equation cannot be empty.")
+
+    normalized = _normalize_text(expression)
+    symbol_table = _symbols_for_system(coordinate_system)
+    x_expr, y_expr, z_expr = _split_curve(normalized)
+
+    x_expr = _safe_parse(x_expr, symbol_table)
+    y_expr = _safe_parse(y_expr, symbol_table)
+    z_expr = _safe_parse(z_expr, symbol_table)
+
+    return ParsedCurve(
+        coordinate_system=coordinate_system,
+        x_expr=x_expr,
+        y_expr=y_expr,
+        z_expr=z_expr
+    )
 
 def parse_equation_text(expression: str, coordinate_system: str) -> ParsedEquation:
     """Convenience wrapper that accepts a coordinate-system string."""
@@ -263,6 +339,19 @@ def parse_equation_text(expression: str, coordinate_system: str) -> ParsedEquati
 
     return parse_equation(expression, system)
 
+
+def parse_curve_text(expression: str, coordinate_system: str) -> ParsedCurve:
+    """Convenience wrapper that accepts a curve string."""
+
+    try:
+        system = CoordinateSystem(coordinate_system.lower().strip())
+    except Exception as e:
+        raise ValueError(
+            f"Unknown coordinate system {coordinate_system!r}. "
+            f"Expected one of: {', '.join(s.value for s in CoordinateSystem)}"
+        ) from e
+
+    return parse_curve(expression, system)
 
 def allowed_variables(coordinate_system: CoordinateSystem) -> Tuple[str, ...]:
     """Return the variable names recognized for a coordinate system."""

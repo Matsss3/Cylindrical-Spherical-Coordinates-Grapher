@@ -20,7 +20,7 @@ import sympy as sp
 from numpy.typing import NDArray
 from sympy.utilities.lambdify import lambdify
 
-from parser import CoordinateSystem, ParsedEquation
+from parser import CoordinateSystem, ParsedCurve, ParsedEquation, parse_curve
 from transform import cylindrical_to_cartesian, spherical_to_cartesian
 
 
@@ -155,8 +155,8 @@ def sample_explicit_surface(
 
 
 def sample_curve(
-    expression: ParsedEquation,
-    resolution: int = 400,
+    expression: ParsedCurve,
+    resolution: int = 100,
     ranges: Optional[Dict[str, Tuple[float, float]]] = None,
 ) -> CurveSample:
     """Sample a parametric curve.
@@ -164,48 +164,34 @@ def sample_curve(
     The curve is expected to use the variable t as its parameter.
     This function supports the simplest useful version first: a curve encoded
     as one dependent variable in terms of t.
-
-    Examples:
-        x = cos(t)
-        r = 2 + cos(t)
-        rho = 1 + sin(t)
     """
 
-    if not expression.is_explicit or expression.dependent_variable is None:
-        raise ValueError("Curve sampling currently expects an explicit equation.")
-
     t = _linspace_for("t", resolution, ranges)
-
     system = expression.coordinate_system
-    dep = expression.dependent_variable.name
-    func = _build_lambdified(expression.rhs, (sp.Symbol("t"),))
-    values = np.asarray(func(t), dtype=float)
 
-    if system == CoordinateSystem.CARTESIAN:
-        if dep == "x":
-            return CurveSample(x=values, y=np.zeros_like(values), z=np.zeros_like(values), parameter=t)
-        if dep == "y":
-            return CurveSample(x=np.zeros_like(values), y=values, z=np.zeros_like(values), parameter=t)
-        if dep == "z":
-            return CurveSample(x=np.zeros_like(values), y=np.zeros_like(values), z=values, parameter=t)
-        raise ValueError("Cartesian curve sampling expects x, y, or z as the dependent variable.")
+    f = _build_lambdified(expression.x_expr, (sp.Symbol("t"),))
+    g = _build_lambdified(expression.y_expr, (sp.Symbol("t"),))
+    h = _build_lambdified(expression.z_expr, (sp.Symbol("t"),))
 
-    if system == CoordinateSystem.CYLINDRICAL:
-        if dep == "r":
-            cart = cylindrical_to_cartesian(values, t, np.zeros_like(values))
-            return CurveSample(x=cart.x, y=cart.y, z=cart.z, parameter=t)
-        if dep == "z":
-            cart = cylindrical_to_cartesian(np.ones_like(values), t, values)
-            return CurveSample(x=cart.x, y=cart.y, z=cart.z, parameter=t)
-        raise ValueError("Cylindrical curve sampling expects r or z as the dependent variable.")
+    A = f(t)
+    B = g(t)
+    C = h(t)
 
-    if system == CoordinateSystem.SPHERICAL:
-        if dep == "rho":
-            cart = spherical_to_cartesian(values, t, np.full_like(values, np.pi / 2.0))
-            return CurveSample(x=cart.x, y=cart.y, z=cart.z, parameter=t)
-        raise ValueError("Spherical curve sampling expects rho as the dependent variable.")
+    if type(A) == int:
+        A = np.full_like(B, A, dtype=float)
+    if type(B) == int:
+        B = np.full_like(A, B, dtype=float)
+    if type(C) == int:
+        C = np.full_like(A, C, dtype=float)
 
-    raise ValueError(f"Unsupported coordinate system: {system!r}")
+    match system:
+        case CoordinateSystem.CARTESIAN:
+            return CurveSample(x=A, y=B, z=C, parameter=t)
+        case CoordinateSystem.CYLINDRICAL:
+            cart = cylindrical_to_cartesian(A, B, C)
+        case CoordinateSystem.SPHERICAL:
+            cart = spherical_to_cartesian(A, B, C)
+    return CurveSample(x=cart.x, y=cart.y, z=cart.z, parameter=t)
 
 
 def sample_implicit_field(
@@ -272,27 +258,22 @@ def sample_implicit_field(
 
 
 def sample_equation(
-    parsed: ParsedEquation,
+    parsed_equation: Optional[ParsedEquation] = None,
+    parsed_curve: Optional[ParsedCurve] = None,
     resolution: int = 100,
     ranges: Optional[Dict[str, Tuple[float, float]]] = None,
     implicit_resolution: int = 40,
 ) -> SampleResult:
     """Dispatch to the appropriate sampling strategy for a parsed equation."""
 
-    if parsed.is_explicit and parsed.dependent_variable is not None:
-        dep = parsed.dependent_variable.name
-        if dep == "t":
-            curve = sample_curve(parsed, resolution=resolution, ranges=ranges)
-            return SampleResult(mode="curve", curve=curve)
-        surface = sample_explicit_surface(parsed, resolution=resolution, ranges=ranges)
-        return SampleResult(mode="explicit_surface", explicit_surface=surface)
-
-    field = sample_implicit_field(parsed, resolution=implicit_resolution, ranges=ranges)
-    return SampleResult(mode="implicit_field", implicit_field=field)
-
-
-def default_ranges() -> Dict[str, Tuple[float, float]]:
-    """Return a copy of the default sampling ranges."""
-
-    return dict(_DEFAULT_RANGES)
-
+    if parsed_equation:
+        if parsed_equation.is_explicit and parsed_equation.dependent_variable is not None:
+            surface = sample_explicit_surface(parsed_equation, resolution=resolution, ranges=ranges)
+            return SampleResult(mode="explicit_surface", explicit_surface=surface)
+        field = sample_implicit_field(parsed_equation, resolution=implicit_resolution, ranges=ranges)
+        return SampleResult(mode="implicit_field", implicit_field=field)
+    elif parsed_curve:
+        curve = sample_curve(parsed_curve, resolution=resolution, ranges=ranges)
+        return SampleResult(mode="curve", curve=curve)
+    else:
+        raise ValueError("No matching expression was found to sample.")
