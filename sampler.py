@@ -122,12 +122,19 @@ def sample_explicit_surface(
     system = parsed.coordinate_system
     res = int(resolution)
 
+    if parsed.lhs == dep:
+        expression = parsed.rhs
+    elif parsed.rhs == dep:
+        expression = parsed.lhs
+    else:
+        raise ValueError("No lambdifiable expression found for this explicit equation.")
+
     a = _linspace_for(indep1.name, res, ranges)
     b = _linspace_for(indep2.name, res, ranges)
 
     A, B = np.meshgrid(a, b)
 
-    func = _build_lambdified(parsed.rhs, (sp.Symbol(indep1.name), sp.Symbol(indep2.name)))
+    func = _build_lambdified(expression, (sp.Symbol(indep1.name), sp.Symbol(indep2.name)))
     C = np.asarray(func(A, B), dtype=float)
     if C.ndim == 0:
         C = np.full_like(A, C, dtype=float)
