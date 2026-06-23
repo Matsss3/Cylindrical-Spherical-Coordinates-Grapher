@@ -70,7 +70,10 @@ def update_graph(objects):
 
     for obj in objects:
         try:
-            if obj["expression"].startswith == "(":
+            print(obj["expression"])
+            print(type(obj["expression"]))
+            print(obj["expression"][0])
+            if obj["expression"][0] == "(":
                 parsed = parse_curve_text(obj["expression"], obj["system"])
                 sample = sample_equation(
                     parsed_curve=parsed, 
