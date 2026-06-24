@@ -36,7 +36,7 @@ class RendererConfig:
     show_axes: bool = True
     show_grid: bool = True
 
-    curve_width: int = 6
+    curve_width: int = 10
 
     title: str = ""
 
@@ -165,6 +165,7 @@ class Renderer:
                 mode="lines",
 
                 line=dict(
+                    color='green',
                     width=self.config.curve_width
                 )
 
@@ -183,6 +184,7 @@ class Renderer:
             mode="lines",
 
             line=dict(
+                color='green',
                 width=self.config.curve_width
             )
         )

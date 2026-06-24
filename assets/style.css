@@ -1,0 +1,173 @@
+html,
+body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: #111827;
+    font-family: Inter, Arial, sans-serif;
+}
+
+.main-layout {
+    display: flex;
+    height: 100vh;
+}
+
+.sidebar {
+    width: 380px;
+    background: #1f2937;
+    padding: 20px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid #374151;
+}
+
+.sidebar-title {
+    color: white;
+    margin-top: 0;
+}
+
+.control-group {
+    margin-bottom: 20px;
+}
+
+.control-group label {
+    display: block;
+    color: #d1d5db;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.dash-slider-mark {
+    color: #d1d5db;
+}
+
+.expression-input {
+    width: 100%;
+    height: 100px;
+    resize: none;
+}
+
+.add-button {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    background: #2563eb;
+    color: white;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.add-button:hover {
+    background: #1d4ed8;
+}
+
+.clear-button {
+    margin-top: auto;
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    background: #dc2626;
+    color: white;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+hr {
+    width: 100%;
+}
+
+.object-list {
+    overflow-y: auto;
+    flex: 1;
+}
+
+.object-card {
+    background: #374151;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.object-system {
+
+    color: #9ca3af;
+    font-size: 12px;
+
+    margin-top: 4px;
+}
+
+.delete-button {
+    border: none;
+    background: transparent;
+    color: #ef4444;
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: 900;
+}
+
+.dash-options-list-option {
+    color: #d1d5db;
+}
+
+.dash-options-list-option-wrapper {
+    height: 0;
+}
+
+/* .dash-options-list-option-text { */
+/*     color: black; */
+/* } */
+
+.graph-container {
+    flex: 1;
+    background: #111827;
+}
+
+.graph {
+    height: 100vh;
+}
+
+@media (max-width: 900px) {
+    .main-layout {
+        flex-direction: column;
+        height: auto;
+    }
+
+    .sidebar {
+        width: 100%;
+        border-right: none;
+        border-top: 1px solid #374151;
+        order: 2;
+    }
+
+    .graph-container {
+        order: 1;
+        height: 50vh;
+    }
+
+    .graph {
+        height: 50vh;
+    }
+
+    .object-list {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .add-button,
+    .clear-button {
+        min-height: 50px;
+        font-size: 16px;
+    }
+
+    .delete-button {
+        min-width: 40px;
+        min-height: 40px;
+    }
+}

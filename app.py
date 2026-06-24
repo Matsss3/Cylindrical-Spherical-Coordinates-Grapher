@@ -21,6 +21,7 @@ from render import Renderer
 from sampler import sample_equation
 
 app = Dash(__name__)
+server = app.server
 
 _ALIAS_MAP: Dict[str, str] = {
     "cartesian": "Cartesiano",
@@ -105,47 +106,46 @@ def clear_objects(_):
 )
 def show_objects(objects):
     if not objects:
-        return "No objects plotted"
-
+        return ""
     return [
         html.Div(
             [
-                dcc.Checklist(
-                    id={
-                        "type": "visibility-toggle",
-                        "index": obj["id"],
-                    },
-                    options=[
-                        {
-                            "label": obj["expression"],
-                            "value": "visible",
-                        }
-                    ],
-                    value=["visible"],
-                ),
+                html.Div(
+                    [
+                        dcc.Checklist(
+                            id={
+                                "type": "visibility-toggle",
+                                "index": obj["id"],
+                            },
+                            options=[
+                                {
+                                    "label": obj["expression"],
+                                    "value": "visible",
+                                }
+                            ],
+                            value=["visible"],
+                        ),
 
-                html.Span(
-                    f" ({_ALIAS_MAP[obj["system"]]})",
-                    style={
-                        "color": "gray",
-                        "marginLeft": "10px",
-                    }
+                        html.Div(
+                            _ALIAS_MAP[obj["system"]],
+                            className="object-system"
+                        ),
+
+                    ]
                 ),
 
                 html.Button(
-                    "⨯",
+                    "✕",
                     id={
                         "type": "delete-object",
                         "index": obj["id"],
                     },
+                    className="delete-button",
                     n_clicks=0,
                 ),
+
             ],
-            style={
-                "display": "flex",
-                "justifyContent": "space-between",
-                "alignItems": "center",
-            },
+            className="object-card"
         )
 
         for obj in objects
@@ -166,15 +166,33 @@ def update_graph(objects, visibility_values):
     objects = objects or []
     visibility_by_id = {}
 
-    for item in ctx.inputs_list[1]:
-        object_id = item["id"]["index"]
+    toggle_inputs = (
+        ctx.inputs_list[1]
+        if len(ctx.inputs_list) > 1
+        else []
+    )
 
+    for item in toggle_inputs:
+        object_id = item["id"]["index"]
         visibility_by_id[object_id] = (
             "visible" in (item["value"] or [])
         )
 
-
     fig = go.Figure()
+    fig.add_trace(
+        go.Scatter3d(
+            x=[-5, 5],
+            y=[-5, 5],
+            z=[-5, 5],
+            mode="markers",
+            marker=dict(
+                size=0.0001,
+                opacity=0
+            ),
+            showlegend=False,
+            hoverinfo="skip",
+        )
+    )
     renderer = Renderer()
 
     for obj in objects:
@@ -201,25 +219,49 @@ def update_graph(objects, visibility_values):
             print(f"Failed to render {obj['expression']}: {e}")
 
     fig.update_layout(
+        paper_bgcolor="#111827",
+        plot_bgcolor="#111827",
+
         scene=dict(
+            bgcolor="#111827",
+
             xaxis=dict(
-                range=[-5, 5]
+                range=[-5, 5],
+                backgroundcolor="#111827",
+                gridcolor="#374151",
+                zerolinecolor="#6B7280",
+                color="white"
             ),
+
             yaxis=dict(
-                range=[-5, 5]
+                range=[-5, 5],
+                backgroundcolor="#111827",
+                gridcolor="#374151",
+                zerolinecolor="#6B7280",
+                color="white"
             ),
+
             zaxis=dict(
-                range=[-5, 5]
+                range=[-5, 5],
+                backgroundcolor="#111827",
+                gridcolor="#374151",
+                zerolinecolor="#6B7280",
+                color="white"
             ),
+
             aspectmode="cube",
-            aspectratio=dict(x=1,y=1,z=1)
+            aspectratio=dict(
+                x=1,
+                y=1,
+                z=1
+            )
         ),
 
         margin=dict(
             l=0,
             r=0,
             b=0,
-            t=20
+            t=0
         ),
 
         uirevision="graph",
@@ -229,53 +271,99 @@ def update_graph(objects, visibility_values):
 
 app.layout = html.Div(
     [
-
-        html.H2("Graficador en Sistemas Coordenados Alternativos"),
-
-        dcc.Dropdown(
-            id="coordinate-system",
-            options=[
-                {"label": "Cartesiano", "value": "cartesian"},
-                {"label": "Cilíndrico", "value": "cylindrical"},
-                {"label": "Esférico", "value": "spherical"},
-            ],
-            value="cartesian",
-            clearable=False,
-        ),
-
-        dcc.Textarea(
-            id="expression",
-            value="z = x**2 + y**2",
-            style={
-                "width": "100%",
-                "height": "100px",
-            },
-        ),
-
-        dcc.Input(
-            id="resolution",
-            type="number",
-            value=100,
-            min=10,
-            max=500,
-        ),
-
-        html.Button(
-            "Añadir",
-            id="add-button",
-        ),
-
-        html.Button(
-            "Borrar",
-            id="clear-button",
-        ),
-
         html.Div(
-            id="object-list",
-        ),
+            [
+                html.Div(
+                    [
+                        html.H2(
+                            "Graficador Alternativo",
+                            className="sidebar-title"
+                        ),
 
-        dcc.Graph(
-            id="graph",
+                        html.Div(
+                            [
+                                html.Label("Sistema"),
+                                dcc.Dropdown(
+                                    id="coordinate-system",
+                                    options=[
+                                        {"label": "Cartesiano", "value": "cartesian"},
+                                        {"label": "Cilíndrico", "value": "cylindrical"},
+                                        {"label": "Esférico", "value": "spherical"},
+                                    ],
+                                    value="cartesian",
+                                    clearable=False,
+                                ),
+
+                            ],
+                            className="control-group"
+                        ),
+
+                        html.Div(
+                            [
+                                html.Label("Expresión"),
+                                dcc.Textarea(
+                                    id="expression",
+                                    value="z = x**2 + y**2",
+                                    className="expression-input"
+                                ),
+                            ],
+                            className="control-group"
+                        ),
+
+                        html.Div(
+                            [
+                                html.Label("Resolución"),
+                                dcc.Slider(
+                                    id="resolution",
+                                    min=20,
+                                    max=300,
+                                    step=10,
+                                    value=100,
+                                    tooltip={
+                                        "placement": "bottom"
+                                    }
+                                ),
+                            ],
+                            className="control-group"
+                        ),
+
+                        html.Button(
+                            "Añadir Objeto",
+                            id="add-button",
+                            className="add-button"
+                        ),
+
+                        html.Hr(),
+
+                        html.Div(
+                            id="object-list",
+                            className="object-list"
+                        ),
+
+                        html.Button(
+                            "Borrar Todo",
+                            id="clear-button",
+                            className="clear-button"
+                        ),
+
+                    ],
+                    className="sidebar"
+                ),
+
+                html.Div(
+                    [
+
+                        dcc.Graph(
+                            id="graph",
+                            className="graph"
+                        )
+
+                    ],
+                    className="graph-container"
+                ),
+
+            ],
+            className="main-layout"
         ),
 
         dcc.Store(
@@ -286,4 +374,4 @@ app.layout = html.Div(
 )
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=False)
