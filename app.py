@@ -286,9 +286,9 @@ app.layout = html.Div(
                                 dcc.Dropdown(
                                     id="coordinate-system",
                                     options=[
-                                        {"label": "Cartesiano", "value": "cartesian"},
-                                        {"label": "Cilíndrico", "value": "cylindrical"},
-                                        {"label": "Esférico", "value": "spherical"},
+                                        {"label": "Cartesiano (x,y,z)", "value": "cartesian"},
+                                        {"label": "Cilíndrico (r,θ,z)", "value": "cylindrical"},
+                                        {"label": "Esférico (ρ,θ,φ)", "value": "spherical"},
                                     ],
                                     value="cartesian",
                                     clearable=False,
