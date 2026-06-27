@@ -120,10 +120,6 @@ hr {
     height: 0;
 }
 
-/* .dash-options-list-option-text { */
-/*     color: black; */
-/* } */
-
 .graph-container {
     flex: 1;
     background: #111827;
@@ -131,6 +127,10 @@ hr {
 
 .graph {
     height: 100vh;
+}
+
+math-field::part(menu-toggle) {
+    display: none;
 }
 
 @media (max-width: 900px) {

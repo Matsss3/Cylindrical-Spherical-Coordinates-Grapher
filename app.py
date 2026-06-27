@@ -385,8 +385,11 @@ app.clientside_callback(
 
         const container = document.getElementById('mathfield-container');
         const mf = document.createElement('math-field');
+    
         mf.style.width = '100%';
         mf.style.fontSize = '1.2em';
+        mf.setAttribute("placeholder", "z = x^2+y^2");
+        MathfieldElement.soundsDirectory = null;
 
         mf.addEventListener('input', (e) => {
             dash_clientside.set_props('expression-store', {
@@ -395,6 +398,16 @@ app.clientside_callback(
         });
 
         container.appendChild(mf);
+
+        mf.menuItems = [];
+        mf.keybindings = [
+            ...mf.keybindings,
+            {
+                key: '^',
+                command: 'moveToSuperScript'
+            }
+        ];
+
         return window.dash_clientside.no_update;
     }
     """,
