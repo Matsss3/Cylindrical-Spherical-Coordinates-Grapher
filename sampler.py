@@ -177,12 +177,20 @@ def sample_curve(
     B = g(t)
     C = h(t)
 
+    ref = next(
+        (x for x in (A, B, C) if isinstance(x, np.ndarray)),
+        None
+    )
+
+    if ref is None:
+        raise ValueError("Curve input must be in function of 't'.")
+
     if type(A) == int:
-        A = np.full_like(B, A, dtype=float)
+        A = np.full_like(ref, A, dtype=float)
     if type(B) == int:
-        B = np.full_like(A, B, dtype=float)
+        B = np.full_like(ref, B, dtype=float)
     if type(C) == int:
-        C = np.full_like(A, C, dtype=float)
+        C = np.full_like(ref, C, dtype=float)
 
     match system:
         case CoordinateSystem.CARTESIAN:

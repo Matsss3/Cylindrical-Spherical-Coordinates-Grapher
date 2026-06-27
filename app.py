@@ -20,7 +20,9 @@ import plotly.graph_objects as go
 from render import Renderer
 from sampler import sample_equation
 
-app = Dash(__name__)
+app = Dash(__name__, external_scripts=[
+    "https://unpkg.com/mathlive"
+])
 server = app.server
 
 _ALIAS_MAP: Dict[str, str] = {
@@ -34,18 +36,20 @@ _ALIAS_MAP: Dict[str, str] = {
     Input("add-button", "n_clicks"),
     State("objects", "data"),
     State("coordinate-system", "value"),
-    State("expression", "value"),
+    # State("expression", "value"),
+    State("expression-store", "data"),
     State("resolution", "value"),
     prevent_initial_call=True,
 )
 def add_object(
-    n_clicks,
+    _,
     objects,
     system,
     expression,
     resolution,
 ):
     objects = objects or []
+    print(expression)
 
     return [
         *objects,
@@ -162,7 +166,7 @@ def show_objects(objects):
         "value",
     ),
 )
-def update_graph(objects, visibility_values):
+def update_graph(objects, _):
     objects = objects or []
     visibility_by_id = {}
 
@@ -298,14 +302,22 @@ app.layout = html.Div(
                             className="control-group"
                         ),
 
+                        # html.Div(
+                        #     [
+                        #         html.Label("Expresión"),
+                        #         dcc.Textarea(
+                        #             id="expression",
+                        #             value="z = x**2 + y**2",
+                        #             className="expression-input"
+                        #         ),
+                        #     ],
+                        #     className="control-group"
+                        # ),
+
                         html.Div(
                             [
                                 html.Label("Expresión"),
-                                dcc.Textarea(
-                                    id="expression",
-                                    value="z = x**2 + y**2",
-                                    className="expression-input"
-                                ),
+                                html.Div(id="mathfield-container"),
                             ],
                             className="control-group"
                         ),
@@ -370,8 +382,36 @@ app.layout = html.Div(
             id="objects",
             data=[]
         ),
+
+        dcc.Store(id="expression-store"),
     ]
 )
 
+
+app.clientside_callback(
+    """
+    function(_) {
+        if (document.querySelector('math-field')) return window.dash_clientside.no_update;
+
+        const container = document.getElementById('mathfield-container');
+        const mf = document.createElement('math-field');
+        mf.style.width = '100%';
+        mf.style.fontSize = '1.2em';
+
+        mf.addEventListener('input', (e) => {
+            dash_clientside.set_props('expression-store', {
+                data: mf.value
+            });
+        });
+
+        container.appendChild(mf);
+        return window.dash_clientside.no_update;
+    }
+    """,
+    Output("mathfield-container", "data-mounted"),
+    Input("mathfield-container", "id")
+)
+
 if __name__ == "__main__":
-    app.run(debug=False)
+    # app.run(debug=False)
+    app.run(debug=True)

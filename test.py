@@ -10,7 +10,7 @@ from render import Renderer
 # )
 
 parsed = parse_curve_text(
-    "(sin(t) + 2*sin(2*t), sin(3*t), cos(t) - 2*cos(2*t))",
+    "(1,2,3 + 0*t)",
     "cartesian"
 )
 
