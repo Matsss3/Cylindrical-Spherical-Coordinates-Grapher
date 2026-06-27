@@ -1,18 +1,18 @@
 """Equation parsing utilities for a coordinate-system grapher.
 
-This module turns a user-entered expression into a structured form that later
+This module turns a LaTex expression into a structured form that later
 modules can sample and render.
 
 Supported equation styles:
 
 1. Explicit surfaces / curves
-   - Cartesian:      z = x**2 + y**2
-   - Cylindrical:    z = r**2
+   - Cartesian:      z = x^2 + y^2
+   - Cylindrical:    z = r^2
    - Spherical:      rho = 2 + sin(phi)
 
 2. Implicit equations
-   - Cartesian:      x**2 + y**2 + z**2 = 1
-   - Cylindrical:    r**2 + z**2 = 4
+   - Cartesian:      x^2 + y^2 + z^2 = 1
+   - Cylindrical:    r^2 + z^2 = 4
    - Spherical:      rho = 2
 
 The parser does not solve the equation. It only normalizes it into SymPy
@@ -23,17 +23,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, Mapping, Optional, Tuple
+from typing import Mapping, Optional, Tuple
 
 import sympy as sp
-from sympy.core.sympify import SympifyError
-from sympy.parsing.sympy_parser import (
-    convert_xor,
-    implicit_multiplication_application,
-    parse_expr,
-    standard_transformations,
-)
-
+from latex2sympy2_extended import latex2sympy
 
 class CoordinateSystem(str, Enum):
     """Supported coordinate systems for the grapher."""
@@ -45,7 +38,7 @@ class CoordinateSystem(str, Enum):
 
 @dataclass(frozen=True)
 class ParsedEquation:
-    """Normalized representation of a user-entered equation."""
+    """Normalized representation of a LaTeX equation."""
 
     original: str
     coordinate_system: CoordinateSystem
@@ -65,28 +58,9 @@ class ParsedCurve:
     y_expr: sp.Expr
     z_expr: sp.Expr
 
-# Unicode and ASCII aliases commonly used by users.
-_ALIAS_MAP: Dict[str, str] = {
-    "ρ": "rho",
-    "ϱ": "rho",
-    "φ": "phi",
-    "θ": "theta",
-    "π": "pi",
-}
-
-_TRANSFORMATIONS = standard_transformations + (
-    convert_xor,
-    implicit_multiplication_application,
-)
-
-
-def _normalize_text(expression: str) -> str:
-    """Replace common unicode symbols with parser-friendly ASCII names."""
-
-    text = expression.strip()
-    for src, dst in _ALIAS_MAP.items():
-        text = text.replace(src, dst)
-    return text
+def _parse_latex(expression: str) -> sp.Expr:
+    """ Convert LaTeX expression string to sympy string. """
+    return latex2sympy(expression)
 
 
 def _symbols_for_system(system: CoordinateSystem) -> Mapping[str, sp.Symbol]:
@@ -109,20 +83,6 @@ def _symbols_for_system(system: CoordinateSystem) -> Mapping[str, sp.Symbol]:
         return {k: base[k] for k in ("r", "theta", "z", "t")}
     if system == CoordinateSystem.SPHERICAL:
         return {k: base[k] for k in ("rho", "theta", "phi", "t")}
-
-
-def _safe_parse(text: str, local_dict: Mapping[str, sp.Symbol]) -> sp.Expr:
-    """Parse a string into a SymPy expression with a controlled symbol table."""
-
-    try:
-        return parse_expr(
-            text,
-            local_dict=dict(local_dict),
-            transformations=_TRANSFORMATIONS,
-            evaluate=True,
-        )
-    except (SympifyError, SyntaxError, TypeError, ValueError) as exc:
-        raise ValueError(f"Could not parse expression: {text!r}") from exc
 
 
 def _split_equation(expression: str) -> Tuple[str, str, bool]:
@@ -155,8 +115,8 @@ def _split_curve(expression: str) -> Tuple[str, str, str]:
     x_expr, y_expr, z_expr
     """
 
-    if expression[0] == "(" and expression[-1] == ")":
-        expression = expression[1:-1]
+    if expression.startswith("\\left(") and expression.endswith("\\right)"):
+        expression = expression[6:-7]
     else:
         raise ValueError("Wrong curve syntax.")
 
@@ -229,6 +189,16 @@ def _detect_dependent_variable(
 
     return None
 
+def canonicalize(expr: sp.Expr, symbol_table: Mapping[str, sp.Symbol]) -> sp.Expr:
+    """ Fix symbol types from LaTeX to reals by mapping """
+    replacements = {
+        s: symbol_table[s.name]
+        for s in expr.free_symbols
+        if s.name in symbol_table
+    }
+
+    return expr.xreplace(replacements)
+
 
 def parse_equation(expression: str, coordinate_system: CoordinateSystem) -> ParsedEquation:
     """Parse and normalize a graphed equation.
@@ -236,7 +206,7 @@ def parse_equation(expression: str, coordinate_system: CoordinateSystem) -> Pars
     Parameters
     ----------
     expression:
-        User-entered equation string.
+        LaTeX equation string.
     coordinate_system:
         The coordinate system the user intends to work in.
 
@@ -249,12 +219,11 @@ def parse_equation(expression: str, coordinate_system: CoordinateSystem) -> Pars
     if not expression or not expression.strip():
         raise ValueError("Equation cannot be empty.")
 
-    normalized = _normalize_text(expression)
     symbol_table = _symbols_for_system(coordinate_system)
 
-    lhs_text, rhs_text, explicit = _split_equation(normalized)
-    lhs = _safe_parse(lhs_text, symbol_table)
-    rhs = _safe_parse(rhs_text, symbol_table)
+    lhs_text, rhs_text, explicit = _split_equation(expression)
+    lhs = canonicalize(_parse_latex(lhs_text), symbol_table)
+    rhs = canonicalize(_parse_latex(rhs_text), symbol_table)
 
     residual = sp.simplify(lhs - rhs)
     dependent_variable = _detect_dependent_variable(lhs, rhs, coordinate_system, symbol_table)
@@ -298,7 +267,7 @@ def parse_curve(expression: str, coordinate_system: CoordinateSystem) -> ParsedC
     Parameters
     ----------
     expression:
-        User-entered curve parametric vectorial equation.
+        LaTeX curve parametric vectorial equation.
     coordinate_system:
         The coordinate system the user intends to work in.
 
@@ -311,13 +280,12 @@ def parse_curve(expression: str, coordinate_system: CoordinateSystem) -> ParsedC
     if not expression or not expression.strip():
         raise ValueError("Equation cannot be empty.")
 
-    normalized = _normalize_text(expression)
     symbol_table = _symbols_for_system(coordinate_system)
-    x_expr, y_expr, z_expr = _split_curve(normalized)
+    x_expr, y_expr, z_expr = _split_curve(expression)
 
-    x_expr = _safe_parse(x_expr, symbol_table)
-    y_expr = _safe_parse(y_expr, symbol_table)
-    z_expr = _safe_parse(z_expr, symbol_table)
+    x_expr = canonicalize(_parse_latex(x_expr), symbol_table)
+    y_expr = canonicalize(_parse_latex(y_expr), symbol_table)
+    z_expr = canonicalize(_parse_latex(z_expr), symbol_table)
 
     return ParsedCurve(
         coordinate_system=coordinate_system,

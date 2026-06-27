@@ -36,7 +36,6 @@ _ALIAS_MAP: Dict[str, str] = {
     Input("add-button", "n_clicks"),
     State("objects", "data"),
     State("coordinate-system", "value"),
-    # State("expression", "value"),
     State("expression-store", "data"),
     State("resolution", "value"),
     prevent_initial_call=True,
@@ -49,14 +48,13 @@ def add_object(
     resolution,
 ):
     objects = objects or []
-    print(expression)
 
     return [
         *objects,
         {
             "id": str(uuid.uuid4()),
             "system": system,
-            "expression": expression.strip(),
+            "expression": expression,
             "resolution": resolution
         }
     ]
@@ -204,7 +202,11 @@ def update_graph(objects, _):
             if not visibility_by_id.get(obj["id"], True):
                 continue
         try:
-            if obj["expression"].startswith("("):
+            if (
+                obj["expression"].startswith("\\left(") and 
+                obj["expression"].endswith("\\right)") and 
+                "=" not in obj["expression"]
+            ):
                 parsed = parse_curve_text(obj["expression"], obj["system"])
                 sample = sample_equation(
                     parsed_curve=parsed, 
@@ -301,18 +303,6 @@ app.layout = html.Div(
                             ],
                             className="control-group"
                         ),
-
-                        # html.Div(
-                        #     [
-                        #         html.Label("Expresión"),
-                        #         dcc.Textarea(
-                        #             id="expression",
-                        #             value="z = x**2 + y**2",
-                        #             className="expression-input"
-                        #         ),
-                        #     ],
-                        #     className="control-group"
-                        # ),
 
                         html.Div(
                             [
