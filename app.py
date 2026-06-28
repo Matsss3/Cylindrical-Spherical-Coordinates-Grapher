@@ -20,7 +20,7 @@ import plotly.graph_objects as go
 from render import Renderer
 from sampler import sample_equation
 
-app = Dash(__name__, external_scripts=[
+app = Dash(__name__, update_title="Cargando...", external_scripts=[
     "https://unpkg.com/mathlive"
 ])
 server = app.server
@@ -142,7 +142,10 @@ def show_objects(objects):
                             className="object-system"
                         ),
 
-                    ]
+                    ],
+                    style={
+                        "overflow-y": "scroll"
+                    }
                 ),
 
                 html.Button(
@@ -185,9 +188,10 @@ def update_graph(objects, _):
 
     for item in toggle_inputs:
         object_id = item["id"]["index"]
-        visibility_by_id[object_id] = (
-            "visible" in (item["value"] or [])
-        )
+        if "value" in item:
+            visibility_by_id[object_id] = (
+                "visible" in (item["value"] or [])
+            )
 
     fig = go.Figure()
     fig.add_trace(
@@ -234,34 +238,37 @@ def update_graph(objects, _):
             print(f"Failed to render {obj['expression']}: {e}")
 
     fig.update_layout(
-        paper_bgcolor="#111827",
-        plot_bgcolor="#111827",
+        paper_bgcolor="#080d1a",
+        plot_bgcolor="#080d1a",
 
         scene=dict(
-            bgcolor="#111827",
+            bgcolor="#080d1a",
 
             xaxis=dict(
+                backgroundcolor="#0e1628",
+                gridcolor="#1e2d48",
+                zerolinecolor="#243356",
+                tickfont=dict(color="#4a5a72"),
+                title=dict(font=dict(color="#4a5a72")),
                 range=[-5, 5],
-                backgroundcolor="#111827",
-                gridcolor="#374151",
-                zerolinecolor="#6B7280",
-                color="white"
             ),
 
             yaxis=dict(
+                backgroundcolor="#0e1628",
+                gridcolor="#1e2d48",
+                zerolinecolor="#243356",
+                tickfont=dict(color="#4a5a72"),
+                title=dict(font=dict(color="#4a5a72")),
                 range=[-5, 5],
-                backgroundcolor="#111827",
-                gridcolor="#374151",
-                zerolinecolor="#6B7280",
-                color="white"
             ),
 
             zaxis=dict(
+                backgroundcolor="#0e1628",
+                gridcolor="#1e2d48",
+                zerolinecolor="#243356",
+                tickfont=dict(color="#4a5a72"),
+                title=dict(font=dict(color="#4a5a72")),
                 range=[-5, 5],
-                backgroundcolor="#111827",
-                gridcolor="#374151",
-                zerolinecolor="#6B7280",
-                color="white"
             ),
 
             aspectmode="cube",
@@ -329,10 +336,7 @@ app.layout = html.Div(
                                     min=20,
                                     max=300,
                                     step=10,
-                                    value=100,
-                                    tooltip={
-                                        "placement": "bottom"
-                                    }
+                                    value=100
                                 ),
                             ],
                             className="control-group"
@@ -406,6 +410,11 @@ app.clientside_callback(
             });
         });
 
+        const addBtn = document.getElementById('add-button');
+        addBtn.addEventListener('click', () => {
+            mf.value = "";
+        });
+
         container.appendChild(mf);
 
         mf.menuItems = [];
@@ -435,7 +444,6 @@ app.clientside_callback(
                 const latex = elem.dataset.latex
 
                 if (!latex) return;
-                console.log(latex);
 
                 elem.textContent = latex;
                 window.MathLive.renderMathInElement(elem);
@@ -449,6 +457,8 @@ app.clientside_callback(
     Output("object-list", "data-rendered"),
     Input("object-list", "children")
 )
+
+app.title = "Graficador"
 
 if __name__ == "__main__":
     # app.run(debug=False)

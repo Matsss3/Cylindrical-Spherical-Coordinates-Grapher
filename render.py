@@ -30,13 +30,13 @@ except ImportError:
 @dataclass
 class RendererConfig:
 
-    surface_opacity: float = 1.0
-    implicit_opacity: float = 1.0
+    surface_opacity: float = 0.95
+    implicit_opacity: float = 0.95
 
     show_axes: bool = True
     show_grid: bool = True
 
-    curve_width: int = 10
+    curve_width: int = 5
 
     title: str = ""
 
@@ -145,6 +145,7 @@ class Renderer:
             y=surface.y,
             z=surface.z,
 
+            colorscale='inferno',
             opacity=self.config.surface_opacity,
 
             showscale=False
@@ -165,7 +166,7 @@ class Renderer:
                 mode="lines",
 
                 line=dict(
-                    color='green',
+                    color='#93c5fd',
                     width=self.config.curve_width
                 )
 
@@ -184,7 +185,7 @@ class Renderer:
             mode="lines",
 
             line=dict(
-                color='green',
+                color='#93c5fd',
                 width=self.config.curve_width
             )
         )
@@ -283,6 +284,6 @@ class Renderer:
 
             opacity=self.config.implicit_opacity,
             intensity=verts[:,2],
-            colorscale="Plasma",
+            colorscale="inferno",
             showscale=False
         )
