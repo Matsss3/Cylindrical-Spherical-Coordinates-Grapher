@@ -121,7 +121,16 @@ def show_objects(objects):
                             },
                             options=[
                                 {
-                                    "label": obj["expression"],
+                                    "label": html.Div(
+                                        id={
+                                            "type": "object-expression",
+                                            "index": obj["id"],
+                                        },
+                                        className="object-expression",
+                                        **{
+                                            "data-latex": f"$${obj['expression']}$$"
+                                        }
+                                    ),
                                     "value": "visible",
                                 }
                             ],
@@ -413,6 +422,32 @@ app.clientside_callback(
     """,
     Output("mathfield-container", "data-mounted"),
     Input("mathfield-container", "id")
+)
+
+app.clientside_callback(
+    """
+    function(children) {
+        requestAnimationFrame(() => {
+            document.querySelectorAll(".object-expression")
+            .forEach(elem => {
+                if (elem.dataset.rendered) return;
+
+                const latex = elem.dataset.latex
+
+                if (!latex) return;
+                console.log(latex);
+
+                elem.textContent = latex;
+                window.MathLive.renderMathInElement(elem);
+                elem.dataset.rendered = "1";
+            });
+        }); 
+
+        return window.dash_clientside.no_update;
+    }
+    """,
+    Output("object-list", "data-rendered"),
+    Input("object-list", "children")
 )
 
 if __name__ == "__main__":
