@@ -465,5 +465,5 @@ app.clientside_callback(
 app.title = "Graficador"
 
 if __name__ == "__main__":
-    # app.run(debug=False)
-    app.run(debug=True)
+    app.run(debug=False)
+    # app.run(debug=True)
