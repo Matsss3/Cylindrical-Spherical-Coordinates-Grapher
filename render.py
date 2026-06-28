@@ -30,8 +30,8 @@ except ImportError:
 @dataclass
 class RendererConfig:
 
-    surface_opacity: float = 0.95
-    implicit_opacity: float = 0.95
+    surface_opacity: float = 1.0
+    implicit_opacity: float = 1.0
 
     show_axes: bool = True
     show_grid: bool = True

@@ -31,6 +31,29 @@ _ALIAS_MAP: Dict[str, str] = {
     "spherical": "Esférico"
 }
 
+_AXIS = dict(
+    backgroundcolor="#090d1c",
+    gridcolor="rgba(74, 90, 114, 0.22)",
+    showbackground=True,
+    zerolinecolor="rgba(245, 158, 11, 0.5)",
+    zerolinewidth=2,
+    tickfont=dict(
+        color="#4a5a72",
+        size=10,
+        family="Inter, system-ui, sans-serif",
+    ),
+    title=dict(font=dict(
+        color="#8b9fc0",
+        size=12,
+        family="Inter, system-ui, sans-serif",
+    )),
+    showgrid=True,
+    zeroline=True,
+    showspikes=True,
+    spikecolor="#f59e0b",
+    spikethickness=1,
+)
+
 @callback(
     Output("objects", "data"),
     Input("add-button", "n_clicks"),
@@ -239,53 +262,34 @@ def update_graph(objects, _):
 
     fig.update_layout(
         paper_bgcolor="#080d1a",
-        plot_bgcolor="#080d1a",
-
+        font=dict(
+            family="Inter, system-ui, sans-serif",
+            color="#8b9fc0"
+        ),
+        modebar=dict(
+            bgcolor="rgba(14, 22, 40, 0.85)",
+            color="#4a5a72",
+            activecolor="#f59e0b", 
+        ),
         scene=dict(
             bgcolor="#080d1a",
-
-            xaxis=dict(
-                backgroundcolor="#0e1628",
-                gridcolor="#1e2d48",
-                zerolinecolor="#243356",
-                tickfont=dict(color="#4a5a72"),
-                title=dict(font=dict(color="#4a5a72")),
-                range=[-5, 5],
-            ),
-
-            yaxis=dict(
-                backgroundcolor="#0e1628",
-                gridcolor="#1e2d48",
-                zerolinecolor="#243356",
-                tickfont=dict(color="#4a5a72"),
-                title=dict(font=dict(color="#4a5a72")),
-                range=[-5, 5],
-            ),
-
-            zaxis=dict(
-                backgroundcolor="#0e1628",
-                gridcolor="#1e2d48",
-                zerolinecolor="#243356",
-                tickfont=dict(color="#4a5a72"),
-                title=dict(font=dict(color="#4a5a72")),
-                range=[-5, 5],
-            ),
-
+            xaxis=dict(**_AXIS, range=[-5, 5]),
+            yaxis=dict(**_AXIS, range=[-5, 5]),
+            zaxis=dict(**_AXIS, range=[-5, 5]),
             aspectmode="cube",
-            aspectratio=dict(
-                x=1,
-                y=1,
-                z=1
-            )
+            aspectratio=dict(x=1, y=1, z=1)
         ),
-
-        margin=dict(
-            l=0,
-            r=0,
-            b=0,
-            t=0
+        hoverlabel=dict(
+            bgcolor="#131e30",
+            bordercolor="#f59e0b",
+            font=dict(
+                color="#e2e8f0",
+                family="Inter, system-ui, sans-serif",
+                size=12,
+            ),
+            namelength=-1,
         ),
-
+        margin=dict(l=0, r=0, b=0, t=0),
         uirevision="graph",
     )
 
