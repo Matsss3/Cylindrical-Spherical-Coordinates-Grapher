@@ -19,6 +19,7 @@ from parser import parse_curve_text, parse_equation_text
 import plotly.graph_objects as go
 from render import Renderer
 from sampler import sample_equation
+from validation import ParseException
 
 app = Dash(__name__, update_title="Cargando...", external_scripts=[
     "https://unpkg.com/mathlive"
@@ -71,16 +72,16 @@ def add_object(
     resolution,
 ):
     objects = objects or []
-
-    return [
-        *objects,
-        {
-            "id": str(uuid.uuid4()),
-            "system": system,
-            "expression": expression,
-            "resolution": resolution
-        }
-    ]
+    if expression is not None and expression.strip():
+        return [
+            *objects,
+            {
+                "id": str(uuid.uuid4()),
+                "system": system,
+                "expression": expression,
+                "resolution": resolution
+            }
+        ]
 
 @callback(
     Output("objects", "data", allow_duplicate=True),
@@ -255,10 +256,13 @@ def update_graph(objects, _):
                     resolution=obj["resolution"], 
                     implicit_resolution=obj["resolution"]
                 )
-            trace = renderer.render(sample, mode="trace")
+            try:
+                trace = renderer.render(sample, mode="trace")
+            except Exception:
+                raise ParseException("Superficie no graficable.")
             fig.add_trace(trace)
         except Exception as e:
-            print(f"Failed to render {obj['expression']}: {e}")
+            print(e)
 
     fig.update_layout(
         paper_bgcolor="#080d1a",
@@ -465,5 +469,5 @@ app.clientside_callback(
 app.title = "Graficador"
 
 if __name__ == "__main__":
-    app.run(debug=False)
-    # app.run(debug=True)
+    # app.run(debug=False)
+    app.run(debug=True)

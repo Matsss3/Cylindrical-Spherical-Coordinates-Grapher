@@ -6,8 +6,6 @@ It supports three main modes:
 - Explicit surfaces in Cartesian, cylindrical, and spherical coordinates
 - Explicit parametric curves
 - Implicit scalar fields for later zero-isosurface extraction
-
-The sampler does not plot anything. It only evaluates equations on grids.
 """
 
 from __future__ import annotations
@@ -20,7 +18,7 @@ import sympy as sp
 from numpy.typing import NDArray
 from sympy.utilities.lambdify import lambdify
 
-from parser import CoordinateSystem, ParsedCurve, ParsedEquation, parse_curve
+from parser import CoordinateSystem, ParsedCurve, ParsedEquation
 from transform import cylindrical_to_cartesian, spherical_to_cartesian
 
 

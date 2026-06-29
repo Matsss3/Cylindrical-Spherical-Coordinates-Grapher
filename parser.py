@@ -27,13 +27,7 @@ from typing import Mapping, Optional, Tuple
 
 import sympy as sp
 from latex2sympy2_extended import latex2sympy
-
-class CoordinateSystem(str, Enum):
-    """Supported coordinate systems for the grapher."""
-
-    CARTESIAN = "cartesian"
-    CYLINDRICAL = "cylindrical"
-    SPHERICAL = "spherical"
+from validation import validate_equation, ParseException, CoordinateSystem
 
 
 @dataclass(frozen=True)
@@ -60,7 +54,11 @@ class ParsedCurve:
 
 def _parse_latex(expression: str) -> sp.Expr:
     """ Convert LaTeX expression string to sympy string. """
-    return latex2sympy(expression)
+
+    try:
+        return latex2sympy(expression)
+    except Exception:
+        raise ParseException("Error de sintaxis en la expresión.")
 
 
 def _symbols_for_system(system: CoordinateSystem) -> Mapping[str, sp.Symbol]:
@@ -100,11 +98,11 @@ def _split_equation(expression: str) -> Tuple[str, str, bool]:
 
     parts = expression.split("=")
     if len(parts) != 2:
-        raise ValueError("Only a single '=' is supported in one equation.")
+        raise ParseException("Solo un '=' es admitido en una ecuación.")
 
     lhs, rhs = (part.strip() for part in parts)
     if not lhs or not rhs:
-        raise ValueError("Both sides of the equation must be non-empty.")
+        raise ParseException("Ambos lados de la igualdad deben contener expresiones.")
     return lhs, rhs, True
 
 def _split_curve(expression: str) -> Tuple[str, str, str]:
@@ -118,7 +116,7 @@ def _split_curve(expression: str) -> Tuple[str, str, str]:
     if expression.startswith("\\left(") and expression.endswith("\\right)"):
         expression = expression[6:-7]
     else:
-        raise ValueError("Wrong curve syntax.")
+        raise ParseException("Sintaxis de curva erronea.")
 
     parts = []
     current = []
@@ -138,7 +136,7 @@ def _split_curve(expression: str) -> Tuple[str, str, str]:
     parts.append(''.join(current).strip())
 
     if len(parts) != 3:
-        raise ValueError("Expected exactly 3 components")
+        raise ParseException("Solo se esperaban 3 componentes en la curva.")
 
     return tuple(parts)
 
@@ -217,13 +215,16 @@ def parse_equation(expression: str, coordinate_system: CoordinateSystem) -> Pars
     """
 
     if not expression or not expression.strip():
-        raise ValueError("Equation cannot be empty.")
+        raise ParseException("La ecuación no puede estar vacía")
 
     symbol_table = _symbols_for_system(coordinate_system)
 
     lhs_text, rhs_text, explicit = _split_equation(expression)
     lhs = canonicalize(_parse_latex(lhs_text), symbol_table)
     rhs = canonicalize(_parse_latex(rhs_text), symbol_table)
+
+    lhs = validate_equation(lhs, coordinate_system)
+    rhs = validate_equation(rhs, coordinate_system)
 
     residual = sp.simplify(lhs - rhs)
     dependent_variable = _detect_dependent_variable(lhs, rhs, coordinate_system, symbol_table)
@@ -249,6 +250,9 @@ def parse_equation(expression: str, coordinate_system: CoordinateSystem) -> Pars
                 key=lambda s: s.name
             )
         )
+
+    if dependent_variable is None and len(independent_variables) == 0:
+        raise ParseException("La expresión no contiene variables.")
 
     return ParsedEquation(
         original=expression,
@@ -278,7 +282,7 @@ def parse_curve(expression: str, coordinate_system: CoordinateSystem) -> ParsedC
     """
 
     if not expression or not expression.strip():
-        raise ValueError("Equation cannot be empty.")
+        raise ParseException("La ecuación no puede estar vacía.")
 
     symbol_table = _symbols_for_system(coordinate_system)
     x_expr, y_expr, z_expr = _split_curve(expression)
