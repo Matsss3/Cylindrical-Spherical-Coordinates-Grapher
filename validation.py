@@ -63,7 +63,8 @@ def _symbols_for_surface(system: CoordinateSystem) -> Set[sp.Symbol]:
         "z": sp.Symbol("z", real=True),
         "r": sp.Symbol("r", nonnegative=True, real=True),
         "θ": sp.Symbol("theta", real=True),
-        "φ": sp.Symbol("phi", real=True),
+        # "φ": sp.Symbol("phi", real=True),
+        "varphi": sp.Symbol("varphi", real=True),
         "ρ": sp.Symbol("rho", nonnegative=True, real=True)
     }
 
@@ -72,7 +73,7 @@ def _symbols_for_surface(system: CoordinateSystem) -> Set[sp.Symbol]:
     if system == CoordinateSystem.CYLINDRICAL:
         return {base[k] for k in ("r", "θ", "z")}
     if system == CoordinateSystem.SPHERICAL:
-        return {base[k] for k in ("ρ", "θ", "φ")}
+        return {base[k] for k in ("ρ", "θ", "varphi")}
 
 class ParseException(Exception):
     def __init__(self, message: str):

@@ -70,7 +70,8 @@ def _symbols_for_system(system: CoordinateSystem) -> Mapping[str, sp.Symbol]:
         "z": sp.Symbol("z", real=True),
         "r": sp.Symbol("r", nonnegative=True, real=True),
         "theta": sp.Symbol("theta", real=True),
-        "phi": sp.Symbol("phi", real=True),
+        # "phi": sp.Symbol("phi", real=True),
+        "varphi": sp.Symbol("varphi", real=True),
         "rho": sp.Symbol("rho", nonnegative=True, real=True),
         "t": sp.Symbol("t", real=True),
     }
@@ -80,7 +81,7 @@ def _symbols_for_system(system: CoordinateSystem) -> Mapping[str, sp.Symbol]:
     if system == CoordinateSystem.CYLINDRICAL:
         return {k: base[k] for k in ("r", "theta", "z", "t")}
     if system == CoordinateSystem.SPHERICAL:
-        return {k: base[k] for k in ("rho", "theta", "phi", "t")}
+        return {k: base[k] for k in ("rho", "theta", "varphi", "t")}
 
 
 def _split_equation(expression: str) -> Tuple[str, str, bool]:
@@ -173,7 +174,7 @@ def _detect_dependent_variable(
         candidates = (
             symbols["rho"],
             symbols["theta"],
-            symbols["phi"],
+            symbols["varphi"],
         )
 
     for candidate in candidates:
@@ -236,7 +237,7 @@ def parse_equation(expression: str, coordinate_system: CoordinateSystem) -> Pars
         all_vars = (symbol_table["r"], symbol_table["theta"], symbol_table["z"])
 
     elif coordinate_system == CoordinateSystem.SPHERICAL:
-        all_vars = (symbol_table["rho"], symbol_table["theta"], symbol_table["phi"])
+        all_vars = (symbol_table["rho"], symbol_table["theta"], symbol_table["varphi"])
 
     if dependent_variable is not None:
         independent_variables = tuple(

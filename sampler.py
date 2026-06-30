@@ -69,7 +69,7 @@ _DEFAULT_RANGES: Dict[str, Tuple[float, float]] = {
     "z": (-5.0, 5.0),
     "r": (0.0, 10.0),
     "theta": (0.0, 2.0 * np.pi),
-    "phi": (0.0, np.pi),
+    "varphi": (0.0, np.pi),
     "rho": (0.0, 10.0),
     "t": (-10.0, 10.0),
 }
@@ -80,7 +80,7 @@ _IMPLICIT_RANGES: Dict[str, Tuple[float, float]] = {
     "z": (-10.0, 10.0),
     "r": (-10.0, 10.0),
     "theta": (-2.0 * np.pi, 2.0 * np.pi),
-    "phi": (-2.0 * np.pi, 2.0 * np.pi),
+    "varphi": (-2.0 * np.pi, 2.0 * np.pi),
     "rho": (-10.0, 10.0),
     "t": (-10.0, 10.0),
 }
@@ -147,7 +147,7 @@ def sample_explicit_surface(
             cart = cylindrical_to_cartesian(a_i, b_i, c_i)
         case CoordinateSystem.SPHERICAL:
             values = {dep.name: C, indep1.name: A, indep2.name: B}
-            a_i, b_i, c_i = values["rho"], values["theta"], values["phi"]
+            a_i, b_i, c_i = values["rho"], values["theta"], values["varphi"]
             cart = spherical_to_cartesian(a_i, b_i, c_i)
     return ExplicitSurfaceSample(x=cart.x, y=cart.y, z=cart.z, parameter_a=A, parameter_b=B)
 
@@ -239,7 +239,7 @@ def sample_implicit_field(
     if system == CoordinateSystem.SPHERICAL:
         rho = _linspace_for("rho", res, _IMPLICIT_RANGES)
         theta = _linspace_for("theta", res, _IMPLICIT_RANGES)
-        phi = _linspace_for("phi", res, _IMPLICIT_RANGES)
+        phi = _linspace_for("varphi", res, _IMPLICIT_RANGES)
         X, Y, Z = np.meshgrid(rho, theta, phi, indexing="ij")
         RHO = np.sqrt(X**2 + Y**2 + Z**2)
         T = np.arctan2(Y, X)
@@ -255,7 +255,7 @@ def sample_implicit_field(
                 1.0
             )
         )
-        func = _build_lambdified(parsed.residual, (sp.Symbol("rho"), sp.Symbol("theta"), sp.Symbol("phi")))
+        func = _build_lambdified(parsed.residual, (sp.Symbol("rho"), sp.Symbol("theta"), sp.Symbol("varphi")))
         values = np.asarray(func(RHO, T, P), dtype=float)
         cart = spherical_to_cartesian(RHO, T, P)
         return ImplicitFieldSample(x=cart.x, y=cart.y, z=cart.z, values=values)

@@ -120,18 +120,38 @@ def delete_object(
 
 @callback(
     Output("objects", "data", allow_duplicate=True),
+    Output("visibility-store", "data", allow_duplicate=True),
     Input("clear-button", "n_clicks"),
     prevent_initial_call=True
 )
 def clear_objects(_):
-    return []
+    return [], {}
+
+@callback(
+    Output("visibility-store", "data"),
+    Input(
+        {
+            "type": "visibility-toggle",
+            "index": ALL
+        },
+        "value"
+    ),
+    prevent_initial_call=True
+)
+def update_visibility(_):
+    return {
+        item["id"]["index"]: "visible" in (item.get("value") or [])
+        for item in ctx.inputs_list[0]
+    }
 
 @callback(
     Output("object-list", "children"),
     Input("objects", "data"),
-    Input("error-store", "data")
+    Input("error-store", "data"),
+    State("visibility-store", "data")
 )
-def show_objects(objects, errors):
+def show_objects(objects, errors, visibility):
+    visibility = visibility or {}
     errors = errors or {}
     if not objects:
         return ""
@@ -162,7 +182,7 @@ def show_objects(objects, errors):
                                             "value": "visible",
                                         }
                                     ],
-                                    value=["visible"],
+                                    value=["visible"] if visibility.get(obj["id"], True) else [],
                                 ),
 
                                 html.Div(
@@ -216,31 +236,12 @@ def show_objects(objects, errors):
     Output("graph", "figure"),
     Output("error-store", "data"),
     Input("objects", "data"),
-    Input(
-        {
-            "type": "visibility-toggle",
-            "index": ALL,
-        },
-        "value",
-    ),
+    Input("visibility-store", "data")
 )
-def update_graph(objects, _):
+def update_graph(objects, visibility):
     objects = objects or []
+    visibility = visibility or {}
     errors = {}
-    visibility_by_id = {}
-
-    toggle_inputs = (
-        ctx.inputs_list[1]
-        if len(ctx.inputs_list) > 1
-        else []
-    )
-
-    for item in toggle_inputs:
-        object_id = item["id"]["index"]
-        if "value" in item:
-            visibility_by_id[object_id] = (
-                "visible" in (item["value"] or [])
-            )
 
     fig = go.Figure()
     fig.add_trace(
@@ -260,9 +261,8 @@ def update_graph(objects, _):
     renderer = Renderer()
 
     for obj in objects:
-        if visibility_by_id:
-            if not visibility_by_id.get(obj["id"], True):
-                continue
+        if not visibility.get(obj["id"], True):
+            continue
         try:
             if (
                 obj["expression"].startswith("\\left(") and 
@@ -420,15 +420,10 @@ app.layout = html.Div(
             className="main-layout"
         ),
 
-        dcc.Store(
-            id="objects",
-            data=[]
-        ),
+        dcc.Store(id="objects", data=[]),
         dcc.Store(id="expression-store"),
-        dcc.Store(
-            id="error-store",
-            data={}
-        )
+        dcc.Store(id="error-store", data={}),
+        dcc.Store(id="visibility-store", data={})
     ]
 )
 
@@ -467,6 +462,10 @@ app.clientside_callback(
                 command: 'moveToSuperScript'
             }
         ];
+        mf.inlineShortcuts = {
+            ...mf.inlineShortcuts,
+            "phi": "\\\\varphi"
+        };
 
         return window.dash_clientside.no_update;
     }
