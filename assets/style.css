@@ -310,6 +310,15 @@ hr {
     margin-top: 3px;
 }
 
+.object-name {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--accent-amber);
+    letter-spacing: 0.04em;
+    margin-bottom: 1px;
+    line-height: 1.4;
+}
+
 /* ─── Error message ──────────────────────────────────────────── */
 .object-card-error {
     border-color: rgba(239, 68, 68, 0.35);

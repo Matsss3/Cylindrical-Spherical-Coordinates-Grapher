@@ -119,7 +119,7 @@ def add_object(
 
     if name is None:
         name_counter += 1
-        name = f"Ex{name_counter}"
+        name = f"eq{name_counter}"
 
     return [
         *objects,
@@ -347,6 +347,16 @@ def update_graph(objects, visibility):
                 trace = renderer.render(sample, mode="trace")
             except Exception:
                 raise ParseException("Superficie no graficable.")
+
+            trace.hoverlabel=dict(
+                bgcolor="#131e30",
+                bordercolor="yellow",
+                font=dict(
+                    color="yellow",
+                    family="Inter, system-ui, sans-serif",
+                    size=12,
+                )
+            )
             trace.name = obj.get('name', '')
             trace.showlegend = True
             fig.add_trace(trace)
@@ -538,11 +548,8 @@ app.clientside_callback(
             }
         ];
         mf.inlineShortcuts = {
-            // ...mf.inlineShortcuts,
-            "phi": "\\\\varphi",
-            "theta": "\\\\theta",
-            "rho": "\\\\rho",
-            "sqrt": "\\\\sqrt\\{#?\\}",
+            ...mf.inlineShortcuts,
+            "phi": "\\\\varphi"
         };
 
         return window.dash_clientside.no_update;
