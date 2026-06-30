@@ -22,13 +22,17 @@ expressions and metadata that the sampler/renderer can consume.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
 from typing import Mapping, Optional, Tuple
 
 import sympy as sp
 from latex2sympy2_extended import latex2sympy
-from validation import validate_equation, ParseException, CoordinateSystem
-
+from validation import (
+    InternalParseException, 
+    validate_curve,
+    validate_equation,
+    ParseException,
+    CoordinateSystem
+)
 
 @dataclass(frozen=True)
 class ParsedEquation:
@@ -70,7 +74,6 @@ def _symbols_for_system(system: CoordinateSystem) -> Mapping[str, sp.Symbol]:
         "z": sp.Symbol("z", real=True),
         "r": sp.Symbol("r", nonnegative=True, real=True),
         "theta": sp.Symbol("theta", real=True),
-        # "phi": sp.Symbol("phi", real=True),
         "varphi": sp.Symbol("varphi", real=True),
         "rho": sp.Symbol("rho", nonnegative=True, real=True),
         "t": sp.Symbol("t", real=True),
@@ -137,7 +140,7 @@ def _split_curve(expression: str) -> Tuple[str, str, str]:
     parts.append(''.join(current).strip())
 
     if len(parts) != 3:
-        raise ParseException("Solo se esperaban 3 componentes en la curva.")
+        raise ParseException("Se esperan 3 componentes en la curva.")
 
     return tuple(parts)
 
@@ -190,6 +193,7 @@ def _detect_dependent_variable(
 
 def canonicalize(expr: sp.Expr, symbol_table: Mapping[str, sp.Symbol]) -> sp.Expr:
     """ Fix symbol types from LaTeX to reals by mapping """
+
     replacements = {
         s: symbol_table[s.name]
         for s in expr.free_symbols
@@ -292,22 +296,26 @@ def parse_curve(expression: str, coordinate_system: CoordinateSystem) -> ParsedC
     y_expr = canonicalize(_parse_latex(y_expr), symbol_table)
     z_expr = canonicalize(_parse_latex(z_expr), symbol_table)
 
+    x = validate_curve(x_expr)
+    y = validate_curve(y_expr)
+    z = validate_curve(z_expr)
+
     return ParsedCurve(
         coordinate_system=coordinate_system,
-        x_expr=x_expr,
-        y_expr=y_expr,
-        z_expr=z_expr
+        x_expr=x,
+        y_expr=y,
+        z_expr=z
     )
 
 def parse_equation_text(expression: str, coordinate_system: str) -> ParsedEquation:
-    """Convenience wrapper that accepts a coordinate-system string."""
+    """Convenience wrapper that accepts a coordinate-system eq string."""
 
     try:
         system = CoordinateSystem(coordinate_system.lower().strip())
     except Exception as exc:
-        raise ValueError(
-            f"Unknown coordinate system {coordinate_system!r}. "
-            f"Expected one of: {', '.join(s.value for s in CoordinateSystem)}"
+        raise InternalParseException(
+            f"Sistema coordenado desconocido {coordinate_system!r}. "
+            f"Se esperaba uno de: {', '.join(s.value for s in CoordinateSystem)}"
         ) from exc
 
     return parse_equation(expression, system)
@@ -318,11 +326,11 @@ def parse_curve_text(expression: str, coordinate_system: str) -> ParsedCurve:
 
     try:
         system = CoordinateSystem(coordinate_system.lower().strip())
-    except Exception as e:
-        raise ValueError(
-            f"Unknown coordinate system {coordinate_system!r}. "
-            f"Expected one of: {', '.join(s.value for s in CoordinateSystem)}"
-        ) from e
+    except Exception as exc:
+        raise InternalParseException(
+            f"Sistema coordenado desconocido {coordinate_system!r}. "
+            f"Se esperaba uno de: {', '.join(s.value for s in CoordinateSystem)}"
+        ) from exc
 
     return parse_curve(expression, system)
 

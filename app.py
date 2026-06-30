@@ -57,6 +57,7 @@ _AXIS = dict(
 
 @callback(
     Output("objects", "data"),
+    Output("expression-store", "data", allow_duplicate=True),
     Input("add-button", "n_clicks"),
     State("objects", "data"),
     State("coordinate-system", "value"),
@@ -81,7 +82,8 @@ def add_object(
                 "expression": expression,
                 "resolution": resolution
             }
-        ]
+        ], ""
+    return [*objects], ""
 
 @callback(
     Output("objects", "data", allow_duplicate=True),
@@ -121,11 +123,13 @@ def delete_object(
 @callback(
     Output("objects", "data", allow_duplicate=True),
     Output("visibility-store", "data", allow_duplicate=True),
+    Output("error-store", "data", allow_duplicate=True),
+    Output("expression-store", "data", allow_duplicate=True),
     Input("clear-button", "n_clicks"),
     prevent_initial_call=True
 )
 def clear_objects(_):
-    return [], {}
+    return [], {}, {}, ""
 
 @callback(
     Output("visibility-store", "data"),

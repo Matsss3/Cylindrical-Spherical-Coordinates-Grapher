@@ -12,6 +12,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
+from validation import InternalParseException
+
 import plotly.graph_objects as go
 
 from sampler import (
@@ -70,9 +72,9 @@ class Renderer:
             if sample.mode == "implicit_field":
                 return self._trace_implicit(sample.implicit_field)
 
-            raise ValueError(f"Unknown sample mode: {sample.mode}")
+            raise InternalParseException(f"Modo de muestreo desconocido: {sample.mode}")
         else:
-            raise ValueError(f"Unknown render mode: {mode}")
+            raise InternalParseException(f"Modo de renderizado desconocido: {mode}")
 
     def _apply_layout(self, fig):
         range_axis = [-5, 5]

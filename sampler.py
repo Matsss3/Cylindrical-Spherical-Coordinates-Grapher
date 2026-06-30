@@ -20,6 +20,7 @@ from sympy.utilities.lambdify import lambdify
 
 from parser import CoordinateSystem, ParsedCurve, ParsedEquation
 from transform import cylindrical_to_cartesian, spherical_to_cartesian
+from validation import InternalParseException, ParseException
 
 
 @dataclass(frozen=True)
@@ -90,7 +91,8 @@ def _linspace_for(name: str, points: int, ranges: Optional[Dict[str, Tuple[float
 
     source = ranges or _DEFAULT_RANGES
     if name not in source:
-        raise ValueError(f"No range configured for variable {name!r}")
+        print_name = f"\\(\\{name!r}\\)" if len(name) > 1 else f"\\({name!r}\\)"
+        raise InternalParseException(f"No hay un rango configurado para la variable {print_name}.")
     start, stop = source[name]
     return np.linspace(float(start), float(stop), int(points), dtype=float)
 
@@ -113,7 +115,7 @@ def sample_explicit_surface(
     """
 
     if not parsed.is_explicit or parsed.dependent_variable is None:
-        raise ValueError("Explicit surface sampling requires an explicit equation.")
+        raise InternalParseException("El muestreo de superficies explicitas requiere una ecuación explícita.")
 
     dep = parsed.dependent_variable
     indep1, indep2 = parsed.independent_variables
@@ -125,7 +127,7 @@ def sample_explicit_surface(
     elif parsed.rhs == dep:
         expression = parsed.lhs
     else:
-        raise ValueError("No lambdifiable expression found for this explicit equation.")
+        raise InternalParseException("No se encontró una expresión lambdificable para esta ecuación explícita.")
 
     a = _linspace_for(indep1.name, res, ranges)
     b = _linspace_for(indep2.name, res, ranges)
@@ -133,7 +135,20 @@ def sample_explicit_surface(
     A, B = np.meshgrid(a, b)
 
     func = _build_lambdified(expression, (sp.Symbol(indep1.name), sp.Symbol(indep2.name)))
-    C = np.asarray(func(A, B), dtype=float)
+    try:
+        with np.errstate(
+            over="raise",
+            divide="raise",
+            invalid="raise",
+            under="ignore",
+        ):
+            C = np.asarray(func(A, B), dtype=float)
+    except Exception:
+        raise ParseException("La expresión produce valores demasiado grandes.")
+
+    if not np.isfinite(C).any():
+        raise ParseException("La expresión no se puede evaluar.")
+
     if C.ndim == 0:
         C = np.full_like(A, C, dtype=float)
     match system:
@@ -157,11 +172,9 @@ def sample_curve(
     resolution: int = 100,
     ranges: Optional[Dict[str, Tuple[float, float]]] = None,
 ) -> CurveSample:
-    """Sample a parametric curve.
+    """Sample a parametric vectorial curve.
 
     The curve is expected to use the variable t as its parameter.
-    This function supports the simplest useful version first: a curve encoded
-    as one dependent variable in terms of t.
     """
 
     t = _linspace_for("t", resolution, ranges)
@@ -171,9 +184,26 @@ def sample_curve(
     g = _build_lambdified(expression.y_expr, (sp.Symbol("t"),))
     h = _build_lambdified(expression.z_expr, (sp.Symbol("t"),))
 
-    A = f(t)
-    B = g(t)
-    C = h(t)
+
+    try:
+        with np.errstate(
+            over="raise",
+            divide="raise",
+            invalid="raise",
+            under="ignore",
+        ):
+            A = f(t)
+            B = g(t)
+            C = h(t)
+    except Exception:
+        raise ParseException("La expresión produce valores demasiado grandes.")
+
+    if (
+        not np.isfinite(A).any() or
+        not np.isfinite(B).any() or
+        not np.isfinite(C).any()
+    ):
+        raise ParseException("La expresión no se puede evaluar.")
 
     ref = next(
         (x for x in (A, B, C) if isinstance(x, np.ndarray)),
@@ -181,7 +211,7 @@ def sample_curve(
     )
 
     if ref is None:
-        raise ValueError("Curve input must be in function of 't'.")
+        raise ParseException("La curva debe estar parametrizada en función a \\(t\\).")
 
     if type(A) == int:
         A = np.full_like(ref, A, dtype=float)
@@ -207,10 +237,7 @@ def sample_implicit_field(
 ) -> ImplicitFieldSample:
     """Sample an implicit equation as a scalar field.
 
-    The returned values array is the residual of the equation. A later step can
-    apply marching cubes or a similar isosurface algorithm to extract the zero
-    level set.
-    """
+    The returned values array is the residual of the equation."""
 
     system = parsed.coordinate_system
     res = int(resolution)
@@ -221,7 +248,18 @@ def sample_implicit_field(
         z = _linspace_for("z", res, ranges)
         X, Y, Z = np.meshgrid(x, y, z, indexing="ij")
         func = _build_lambdified(parsed.residual, (sp.Symbol("x"), sp.Symbol("y"), sp.Symbol("z")))
-        values = np.asarray(func(X, Y, Z), dtype=float)
+        try:
+            with np.errstate(
+                over="raise",
+                divide="raise",
+                invalid="raise",
+                under="ignore",
+            ):
+                values = np.asarray(func(X, Y, Z), dtype=float)
+        except Exception:
+            raise ParseException("La expresión produce valores demasiado grandes.")
+        if not np.isfinite(values).any():
+            raise ParseException("La expresión no se puede evaluar.")
         return ImplicitFieldSample(x=X, y=Y, z=Z, values=values)
 
     if system == CoordinateSystem.CYLINDRICAL:
@@ -232,7 +270,18 @@ def sample_implicit_field(
         R = np.sqrt(X**2 + Y**2)
         T = np.arctan2(Y, X)
         func = _build_lambdified(parsed.residual, (sp.Symbol("r"), sp.Symbol("theta"), sp.Symbol("z")))
-        values = np.asarray(func(R, T, Z), dtype=float)
+        try:
+            with np.errstate(
+                over="raise",
+                divide="raise",
+                invalid="raise",
+                under="ignore",
+            ):
+                values = np.asarray(func(R, T, Z), dtype=float)
+        except Exception:
+            raise ParseException("La expresión produce valores demasiado grandes.")
+        if not np.isfinite(values).any():
+            raise ParseException("La expresión no se puede evaluar.")
         cart = cylindrical_to_cartesian(R, T, Z)
         return ImplicitFieldSample(x=cart.x, y=cart.y, z=cart.z, values=values)
 
@@ -256,11 +305,22 @@ def sample_implicit_field(
             )
         )
         func = _build_lambdified(parsed.residual, (sp.Symbol("rho"), sp.Symbol("theta"), sp.Symbol("varphi")))
-        values = np.asarray(func(RHO, T, P), dtype=float)
+        try:
+            with np.errstate(
+                over="raise",
+                divide="raise",
+                invalid="raise",
+                under="ignore",
+            ):
+                values = np.asarray(func(RHO, T, P), dtype=float)
+        except Exception:
+            raise ParseException("La expresión produce valores demasiado grandes.")
+        if not np.isfinite(values).any():
+            raise ParseException("La expresión no se puede evaluar.")
         cart = spherical_to_cartesian(RHO, T, P)
         return ImplicitFieldSample(x=cart.x, y=cart.y, z=cart.z, values=values)
 
-    raise ValueError(f"Unsupported coordinate system: {system!r}")
+    raise InternalParseException(f"Sistema coordinado no admitido: {system!r}")
 
 
 def sample_equation(
@@ -282,4 +342,4 @@ def sample_equation(
         curve = sample_curve(parsed_curve, resolution=resolution, ranges=ranges)
         return SampleResult(mode="curve", curve=curve)
     else:
-        raise ValueError("No matching expression was found to sample.")
+        raise InternalParseException("No se encontró una expresión adecuada para muestrear.")

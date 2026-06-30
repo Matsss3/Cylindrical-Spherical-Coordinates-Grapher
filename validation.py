@@ -63,7 +63,6 @@ def _symbols_for_surface(system: CoordinateSystem) -> Set[sp.Symbol]:
         "z": sp.Symbol("z", real=True),
         "r": sp.Symbol("r", nonnegative=True, real=True),
         "θ": sp.Symbol("theta", real=True),
-        # "φ": sp.Symbol("phi", real=True),
         "varphi": sp.Symbol("varphi", real=True),
         "ρ": sp.Symbol("rho", nonnegative=True, real=True)
     }
@@ -124,6 +123,31 @@ def validate_equation(expression: sp.Expr, system: CoordinateSystem) -> sp.Expr:
     _unsupported_functions(expression)
 
     return expression
+
+def validate_curve(expression: sp.Expr) -> sp.Expr:
+    """Takes in the x, y, z parts after being parsed
+    by latex2sympy2 and runs all validations.
+
+    Returns
+    -------
+    expression
+        If an Excepction arises, nothing is returned.
+    """
+
+    unknown = expression.free_symbols - {sp.Symbol("t", real=True)}
+    for x in unknown:
+        if x in _SUPPORTED_CONSTANTS:
+            unknown.discard(x)
+
+    if unknown:
+        raise ParseException("La curva debe estar parametrizada en función a \\(t\\).")
+
+    _division_by_zero(expression)
+    _domain_check(expression)
+    _unsupported_functions(expression)
+
+    return expression
+
 
 def _unknown_vars(expression: sp.Expr, system: CoordinateSystem):
     """Checks if there is an atomic variable not supported

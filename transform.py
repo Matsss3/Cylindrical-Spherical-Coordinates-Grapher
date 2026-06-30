@@ -79,11 +79,7 @@ def spherical_to_cartesian(rho: ArrayLike, theta: ArrayLike, phi: ArrayLike) -> 
 
 
 def cartesian_identity(x: ArrayLike, y: ArrayLike, z: ArrayLike) -> CartesianGrid:
-    """Return Cartesian coordinates unchanged.
-
-    This is mainly here so the renderer can use the same interface regardless of
-    coordinate system.
-    """
+    """Return Cartesian coordinates unchanged."""
 
     return CartesianGrid(x=_as_float_array(x), y=_as_float_array(y), z=_as_float_array(z))
 
@@ -109,8 +105,6 @@ def to_cartesian(
         return cylindrical_to_cartesian(a, b, c)
     if coordinate_system == CoordinateSystem.SPHERICAL:
         return spherical_to_cartesian(a, b, c)
-
-    raise ValueError(f"Unsupported coordinate system: {coordinate_system!r}")
 
 
 def mesh_to_cartesian(
