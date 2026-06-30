@@ -269,21 +269,25 @@ hr {
 }
 
 /* ─── Object cards ───────────────────────────────────────────── */
-.object-card {
+.object-card-wrapper {
     background: var(--bg-card);
     border: 1px solid var(--border-subtle);
     border-left: 3px solid var(--accent-amber);
     border-radius: 8px;
     padding: 10px 10px 10px 12px;
     margin-bottom: 7px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
     transition: border-color 0.15s;
 }
 
-.object-card:has(input[type="checkbox"]:not(:checked)) {
+.object-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+    gap: 10px;
+}
+
+.object-card-wrapper:has(input[type="checkbox"]:not(:checked)) {
     border-left-color: var(--text-muted);
     opacity: 0.6;
 }
@@ -303,6 +307,42 @@ hr {
     letter-spacing: 0.08em;
     text-transform: uppercase;
     margin-top: 3px;
+}
+
+/* ─── Error message ──────────────────────────────────────────── */
+.object-card-error {
+    border-color: rgba(239, 68, 68, 0.35);
+    background: linear-gradient(
+        135deg,
+        rgba(239, 68, 68, 0.055) 0%,
+        transparent 55%
+    );
+}
+
+.object-error {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin: 4px 0 2px;
+    padding: 7px 10px;
+    background: rgba(239, 68, 68, 0.07);
+    border: 1px solid rgba(239, 68, 68, 0.18);
+    border-radius: 4px;
+    font-size: 0.72rem;
+    line-height: 1.55;
+    color: #f87171;
+}
+
+.object-error-icon {
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    margin-top: 1px;
+    opacity: 0.85;
+}
+
+.object-error-message {
+    white-space: pre-line;
+    word-break: break-word;
 }
 
 /* ─── Visibility checkbox ────────────────────────────────────── */

@@ -19,7 +19,7 @@ from parser import parse_curve_text, parse_equation_text
 import plotly.graph_objects as go
 from render import Renderer
 from sampler import sample_equation
-from validation import ParseException
+from validation import InternalParseException, ParseException
 
 app = Dash(__name__, update_title="Cargando...", external_scripts=[
     "https://unpkg.com/mathlive"
@@ -129,8 +129,10 @@ def clear_objects(_):
 @callback(
     Output("object-list", "children"),
     Input("objects", "data"),
+    Input("error-store", "data")
 )
-def show_objects(objects):
+def show_objects(objects, errors):
+    errors = errors or {}
     if not objects:
         return ""
     return [
@@ -138,52 +140,73 @@ def show_objects(objects):
             [
                 html.Div(
                     [
-                        dcc.Checklist(
-                            id={
-                                "type": "visibility-toggle",
-                                "index": obj["id"],
-                            },
-                            options=[
-                                {
-                                    "label": html.Div(
-                                        id={
-                                            "type": "object-expression",
-                                            "index": obj["id"],
-                                        },
-                                        className="object-expression",
-                                        **{
-                                            "data-latex": f"$${obj['expression']}$$"
+                        html.Div(
+                            [
+                                dcc.Checklist(
+                                    id={
+                                        "type": "visibility-toggle",
+                                        "index": obj["id"],
+                                    },
+                                    options=[
+                                        {
+                                            "label": html.Div(
+                                                id={
+                                                    "type": "object-expression",
+                                                    "index": obj["id"],
+                                                },
+                                                className="object-expression",
+                                                **{
+                                                    "data-latex": f"$${obj['expression']}$$"
+                                                }
+                                            ),
+                                            "value": "visible",
                                         }
-                                    ),
-                                    "value": "visible",
-                                }
+                                    ],
+                                    value=["visible"],
+                                ),
+
+                                html.Div(
+                                    _ALIAS_MAP[obj["system"]],
+                                    className="object-system"
+                                ),
+
                             ],
-                            value=["visible"],
+                            style={
+                                "overflow-y": "scroll"
+                            }
                         ),
 
-                        html.Div(
-                            _ALIAS_MAP[obj["system"]],
-                            className="object-system"
+                        html.Button(
+                            "✕",
+                            id={
+                                "type": "delete-object",
+                                "index": obj["id"],
+                            },
+                            className="delete-button",
+                            n_clicks=0,
                         ),
 
                     ],
-                    style={
-                        "overflow-y": "scroll"
-                    }
+                    className="object-card"
                 ),
 
-                html.Button(
-                    "✕",
-                    id={
-                        "type": "delete-object",
-                        "index": obj["id"],
-                    },
-                    className="delete-button",
-                    n_clicks=0,
-                ),
+                html.Div(
+                    [
+                        html.Span("⚠", className="object-error-icon"),
+                        html.Span(
+                            errors[obj["id"]],
+                            className="object-error-message"
+                        ),
+                    ],
+                    className="object-error"
+                ) if obj["id"] in errors else None,
 
             ],
-            className="object-card"
+            className=(
+                "object-card-wrapper object-card-error"
+                if obj["id"] in errors
+                else "object-card-wrapper"
+            )
         )
 
         for obj in objects
@@ -191,6 +214,7 @@ def show_objects(objects):
 
 @callback(
     Output("graph", "figure"),
+    Output("error-store", "data"),
     Input("objects", "data"),
     Input(
         {
@@ -202,6 +226,7 @@ def show_objects(objects):
 )
 def update_graph(objects, _):
     objects = objects or []
+    errors = {}
     visibility_by_id = {}
 
     toggle_inputs = (
@@ -261,7 +286,13 @@ def update_graph(objects, _):
             except Exception:
                 raise ParseException("Superficie no graficable.")
             fig.add_trace(trace)
+        except ParseException as e:
+            errors[obj["id"]] = e.message
+        except InternalParseException as e:
+            errors[obj["id"]] = "Error interno al procesar la expresión."
+            print(e)
         except Exception as e:
+            errors[obj["id"]] = "Error inesperado al procesar la expresión."
             print(e)
 
     fig.update_layout(
@@ -297,7 +328,7 @@ def update_graph(objects, _):
         uirevision="graph",
     )
 
-    return fig
+    return fig, errors
 
 app.layout = html.Div(
     [
@@ -393,8 +424,11 @@ app.layout = html.Div(
             id="objects",
             data=[]
         ),
-
         dcc.Store(id="expression-store"),
+        dcc.Store(
+            id="error-store",
+            data={}
+        )
     ]
 )
 

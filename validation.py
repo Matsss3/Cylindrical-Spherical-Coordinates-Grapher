@@ -96,10 +96,7 @@ class UnknownVariableException(ParseException):
         self.allowed = ", ".join(list(map(str, allowed_vars)))
 
         super().__init__(
-            f"""Variables desconocidas: {self.symbols}
-
-            Las variables permitidas para el sistema son:
-            {self.allowed}"""
+            f"Variables desconocidas: '{self.symbols}' \n Permitidas en este sistema: {self.allowed}"
         )
 
 class UnsupportedFunctionException(ParseException):
@@ -177,7 +174,6 @@ def _division_by_zero(expression: sp.Expr):
 
     if (
         simplified.has(sp.zoo) or 
-        simplified.has(sp.oo) or
         simplified.has(sp.nan)
     ):
         raise ParseException("La expresión se simplifica a una división por 0.")
