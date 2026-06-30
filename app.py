@@ -1,4 +1,5 @@
-from typing import Dict
+from typing import Dict, Tuple, Optional
+import re
 import uuid
 
 from dash import (
@@ -55,14 +56,49 @@ _AXIS = dict(
     spikethickness=1,
 )
 
+_GREEK_NAMES = [
+    "alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta",
+    "iota", "kappa", "lambda", "mu", "nu", "xi", "omicron", "pi", "rho",
+    "sigma", "tau", "upsilon", "phi", "varphi", "chi", "psi", "omega",
+    "Gamma", "Delta", "Theta", "Lambda", "Xi", "Pi", "Sigma", "Upsilon",
+    "Phi", "Psi", "Omega",
+]
+
+_NAME_UNIT = r"(?:[A-Za-z]|\\(?:" + "|".join(_GREEK_NAMES) + r")\b)"
+
+_NAMED_EXPRESSION_RE = re.compile(
+    rf"^\s*((?:{_NAME_UNIT})+)\s*(?::|\\colon\b)\s*(.+)$",
+    re.DOTALL,
+)
+
+def split_named_expression(latex: str) -> Tuple[Optional[str], str]:
+    """Split a raw mathfield LaTeX value into (name, expression).
+ 
+    Returns:
+    -------
+        If the string doesn't start with a valid name (letters and/or greek
+    macros only) followed by a colon, returns (None, latex) unchanged —
+    the whole string is treated as an unnamed expression.
+    """
+ 
+    match = _NAMED_EXPRESSION_RE.match(latex)
+    if not match:
+        return None, latex
+ 
+    name, expression = match.groups()
+    return name.strip(), expression.strip()
+
+
 @callback(
     Output("objects", "data"),
     Output("expression-store", "data", allow_duplicate=True),
+    Output("name-counter", "data"),
     Input("add-button", "n_clicks"),
     State("objects", "data"),
     State("coordinate-system", "value"),
     State("expression-store", "data"),
     State("resolution", "value"),
+    State("name-counter", "data"),
     prevent_initial_call=True,
 )
 def add_object(
@@ -71,19 +107,30 @@ def add_object(
     system,
     expression,
     resolution,
+    name_counter
 ):
     objects = objects or []
-    if expression is not None and expression.strip():
-        return [
-            *objects,
-            {
-                "id": str(uuid.uuid4()),
-                "system": system,
-                "expression": expression,
-                "resolution": resolution
-            }
-        ], ""
-    return [*objects], ""
+    name_counter = name_counter or 0
+
+    if expression is None or not expression.strip():
+        return [*objects], ""
+
+    name, parsed_expression = split_named_expression(expression.strip())
+
+    if name is None:
+        name_counter += 1
+        name = f"Ex{name_counter}"
+
+    return [
+        *objects,
+        {
+            "id": str(uuid.uuid4()),
+            "system": system,
+            "expression": parsed_expression,
+            "name": name,
+            "resolution": resolution
+        }
+    ], "", name_counter
 
 @callback(
     Output("objects", "data", allow_duplicate=True),
@@ -166,6 +213,17 @@ def show_objects(objects, errors, visibility):
                     [
                         html.Div(
                             [
+                                html.Div(
+                                    id={
+                                        "type": "object-name",
+                                        "index": obj["id"]
+                                    },
+                                    className="object-name",
+                                    **{
+                                        "data-latex": f"$${obj.get('name', '')}$$"
+                                    }
+                                ),
+
                                 dcc.Checklist(
                                     id={
                                         "type": "visibility-toggle",
@@ -289,6 +347,8 @@ def update_graph(objects, visibility):
                 trace = renderer.render(sample, mode="trace")
             except Exception:
                 raise ParseException("Superficie no graficable.")
+            trace.name = obj.get('name', '')
+            trace.showlegend = True
             fig.add_trace(trace)
         except ParseException as e:
             errors[obj["id"]] = e.message
@@ -330,6 +390,16 @@ def update_graph(objects, visibility):
         ),
         margin=dict(l=0, r=0, b=0, t=0),
         uirevision="graph",
+        legend=dict(
+            bgcolor="rgba(14, 22, 40, 0.85)",
+            bordercolor="rgba(74, 90, 114, 0.3)",
+            borderwidth=1,
+            font=dict(
+                color="#8b9fc0",
+                family="Inter, system-ui, sans-serif",
+                size=12,
+            ),
+        )
     )
 
     return fig, errors
@@ -427,7 +497,8 @@ app.layout = html.Div(
         dcc.Store(id="objects", data=[]),
         dcc.Store(id="expression-store"),
         dcc.Store(id="error-store", data={}),
-        dcc.Store(id="visibility-store", data={})
+        dcc.Store(id="visibility-store", data={}),
+        dcc.Store(id="name-counter", data=0)
     ]
 )
 
@@ -467,8 +538,11 @@ app.clientside_callback(
             }
         ];
         mf.inlineShortcuts = {
-            ...mf.inlineShortcuts,
-            "phi": "\\\\varphi"
+            // ...mf.inlineShortcuts,
+            "phi": "\\\\varphi",
+            "theta": "\\\\theta",
+            "rho": "\\\\rho",
+            "sqrt": "\\\\sqrt\\{#?\\}",
         };
 
         return window.dash_clientside.no_update;
@@ -482,7 +556,7 @@ app.clientside_callback(
     """
     function(children) {
         requestAnimationFrame(() => {
-            document.querySelectorAll(".object-expression")
+            document.querySelectorAll(".object-expression, .object-name")
             .forEach(elem => {
                 if (elem.dataset.rendered) return;
 
