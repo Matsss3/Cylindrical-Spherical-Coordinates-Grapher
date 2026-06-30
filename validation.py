@@ -93,11 +93,12 @@ class InternalParseException(Exception):
 
 class UnknownVariableException(ParseException):
     def __init__(self, symbols: Set[sp.Expr], allowed_vars: Set[sp.Expr]):
-        self.symbols = str(sorted(map(str, symbols))[0])
-        self.allowed = ", ".join(list(map(str, allowed_vars)))
+        first_symbol = sorted(map(str, symbols))[0]
+        self.unknown = f"\\(\\{first_symbol}\\)" if len(first_symbol) > 1 else f"\\({first_symbol}\\)"
+        self.allowed = ", ".join([f"\\(\\{x}\\)" if len(x) > 1 else f"\\({x}\\)" for x in list(map(str, allowed_vars))])
 
         super().__init__(
-            f"Variables desconocidas: '{self.symbols}' \n Permitidas en este sistema: {self.allowed}"
+            f"Variables desconocidas: '{self.unknown}', \n Permitidas en este sistema: {self.allowed}"
         )
 
 class UnsupportedFunctionException(ParseException):

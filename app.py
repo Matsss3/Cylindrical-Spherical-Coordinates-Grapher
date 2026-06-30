@@ -490,6 +490,14 @@ app.clientside_callback(
                 window.MathLive.renderMathInElement(elem);
                 elem.dataset.rendered = "1";
             });
+
+            document.querySelectorAll(".object-error-message")
+            .forEach(elem => {
+                if (elem.dataset.rendered) return;
+
+                window.MathLive.renderMathInElement(elem);
+                elem.dataset.rendered = "1";
+            });
         }); 
 
         return window.dash_clientside.no_update;
