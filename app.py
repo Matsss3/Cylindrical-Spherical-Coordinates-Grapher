@@ -56,6 +56,15 @@ _AXIS = dict(
     spikethickness=1,
 )
 
+_SURFACE_PALETTES = [
+    [[0.0, "#140e00"], [0.35, "#92580a"], [0.65, "#f59e0b"], [1.0, "#fef3c7"]],
+    [[0.0, "#04091f"], [0.35, "#1641a0"], [0.65, "#3b82f6"], [1.0, "#dbeafe"]],
+    [[0.0, "#011613"], [0.35, "#0e7370"], [0.65, "#2dd4bf"], [1.0, "#ccfbf1"]],
+    [[0.0, "#18040e"], [0.35, "#9e1239"], [0.65, "#fb7185"], [1.0, "#ffe4e6"]],
+    [[0.0, "#0c061e"], [0.35, "#5b21b6"], [0.65, "#a78bfa"], [1.0, "#ede9fe"]],
+    [[0.0, "#081202"], [0.35, "#3f6212"], [0.65, "#a3e635"], [1.0, "#ecfccb"]],
+]
+
 _GREEK_NAMES = [
     "alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta",
     "iota", "kappa", "lambda", "mu", "nu", "xi", "omicron", "pi", "rho",
@@ -64,7 +73,9 @@ _GREEK_NAMES = [
     "Phi", "Psi", "Omega",
 ]
 
-_NAME_UNIT = r"(?:[A-Za-z]|\\(?:" + "|".join(_GREEK_NAMES) + r")\b)"
+_LETTER = r"A-Za-zÁÉÍÓÚáéíóúÜüÑñ"
+
+_NAME_UNIT = rf"(?:[{_LETTER}]|\\(?:{'|'.join(_GREEK_NAMES)})\b)"
 
 _NAMED_EXPRESSION_RE = re.compile(
     rf"^\s*((?:{_NAME_UNIT})+)\s*(?::|\\colon\b)\s*(.+)$",
@@ -321,6 +332,7 @@ def update_graph(objects, visibility):
         )
     )
     renderer = Renderer()
+    trace_idx = 0
 
     for obj in objects:
         if not visibility.get(obj["id"], True):
@@ -348,11 +360,24 @@ def update_graph(objects, visibility):
             except Exception:
                 raise ParseException("Superficie no graficable.")
 
+            palette = _SURFACE_PALETTES[trace_idx % len(_SURFACE_PALETTES)]
+            accent = palette[2][1]
+
+            if isinstance(trace, go.Scatter3d):
+                trace.update(
+                    line=dict(color=accent, width=5),
+                    marker=dict(color=accent, size=3)
+                ) 
+            else:
+                trace.colorscale = palette
+                trace.showscale = False
+                trace.opacity = 0.82
+
             trace.hoverlabel=dict(
                 bgcolor="#131e30",
-                bordercolor="yellow",
+                bordercolor=accent,
                 font=dict(
-                    color="yellow",
+                    color=accent,
                     family="Inter, system-ui, sans-serif",
                     size=12,
                 )
@@ -360,6 +385,7 @@ def update_graph(objects, visibility):
             trace.name = obj.get('name', '')
             trace.showlegend = True
             fig.add_trace(trace)
+            trace_idx += 1
         except ParseException as e:
             errors[obj["id"]] = e.message
         except InternalParseException as e:
