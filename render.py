@@ -168,7 +168,7 @@ class Renderer:
                 mode="lines",
 
                 line=dict(
-                    color='green',
+                    color='#93c5fd',
                     width=self.config.curve_width
                 )
 

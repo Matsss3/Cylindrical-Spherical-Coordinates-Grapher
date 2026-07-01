@@ -1,3 +1,4 @@
+from time import perf_counter
 from typing import Dict, Tuple, Optional
 import re
 import uuid
@@ -20,7 +21,37 @@ from parser import parse_curve_text, parse_equation_text
 import plotly.graph_objects as go
 from render import Renderer
 from sampler import sample_equation
+from timing import timer
 from validation import InternalParseException, ParseException
+
+def _warmup():
+    """Exercise the parse→validate→lambdify→sample pipeline once per
+    coordinate system so ANTLR table construction, sympy's assumption
+    cache, and lambdify's codegen/printer setup all pay their one-time
+    cost at boot instead of on a user's first click."""
+    warmup_cases = [
+        ("z=x^2+y^2", "cartesian"),
+        ("z=r^2", "cylindrical"),
+        ("\\rho=1+\\cos(\\theta)", "spherical"),
+    ]
+    for expression, system in warmup_cases:
+        try:
+            parsed = parse_equation_text(expression, system)
+            sample_equation(
+                parsed_equation=parsed,
+                resolution=20,
+                implicit_resolution=20,
+            )
+        except Exception as e:
+            print(e)
+            pass
+    try:
+        parsed_curve = parse_curve_text("\\left(t,t,t\\right)", "cartesian")
+        sample_equation(parsed_curve=parsed_curve, resolution=20)
+    except Exception:
+        pass
+
+_warmup()
 
 app = Dash(__name__, update_title="Cargando...", external_scripts=[
     "https://unpkg.com/mathlive"
@@ -334,7 +365,9 @@ def update_graph(objects, visibility):
     renderer = Renderer()
     trace_idx = 0
 
-    for obj in objects:
+    for i, obj in enumerate(objects):
+        start = perf_counter()
+
         if not visibility.get(obj["id"], True):
             continue
         try:
@@ -343,20 +376,27 @@ def update_graph(objects, visibility):
                 obj["expression"].endswith("\\right)") and 
                 "=" not in obj["expression"]
             ):
-                parsed = parse_curve_text(obj["expression"], obj["system"])
-                sample = sample_equation(
-                    parsed_curve=parsed, 
-                    resolution=obj["resolution"]
-                )
+                with timer("full curve parse time"):
+                    parsed = parse_curve_text(obj["expression"], obj["system"])
+                with timer("full curve sample time"):
+                    sample = sample_equation(
+                        parsed_curve=parsed, 
+                        resolution=obj["resolution"]
+                    )
             else:
-                parsed = parse_equation_text(obj["expression"], obj["system"])
-                sample = sample_equation(
-                    parsed_equation=parsed, 
-                    resolution=obj["resolution"], 
-                    implicit_resolution=obj["resolution"]
-                )
+                capped_res = max(0, min(obj["resolution"], 100))
+
+                with timer("full surface parse time"):
+                    parsed = parse_equation_text(obj["expression"], obj["system"])
+                with timer("full surface sample time"):
+                    sample = sample_equation(
+                        parsed_equation=parsed, 
+                        resolution=obj["resolution"], 
+                        implicit_resolution=capped_res
+                    )
             try:
-                trace = renderer.render(sample, mode="trace")
+                with timer("plotly trace render"):
+                    trace = renderer.render(sample, mode="trace")
             except Exception:
                 raise ParseException("Superficie no graficable.")
 
@@ -395,7 +435,8 @@ def update_graph(objects, visibility):
             )
             trace.name = obj.get('name', '')
             trace.showlegend = True
-            fig.add_trace(trace)
+            with timer("figure add"):
+                fig.add_trace(trace)
             trace_idx += 1
         except ParseException as e:
             errors[obj["id"]] = e.message
@@ -405,6 +446,11 @@ def update_graph(objects, visibility):
         except Exception as e:
             errors[obj["id"]] = "Error inesperado al procesar la expresión."
             print(e)
+
+        print(
+            f"Object {i}: "
+            f"{(perf_counter()-start):.3f}s"
+        )
 
     fig.update_layout(
         paper_bgcolor="#080d1a",
@@ -632,5 +678,5 @@ app.clientside_callback(
 app.title = "Graficador"
 
 if __name__ == "__main__":
-    app.run(debug=False)
-    # app.run(debug=True)
+    # app.run(debug=False)
+    app.run(debug=True)

@@ -116,10 +116,11 @@ def validate_equation(expression: sp.Expr, system: CoordinateSystem) -> sp.Expr:
     expression
         If an Excepction arises, nothing is returned.
     """
+    simplified = sp.simplify(expression)
 
     _unknown_vars(expression, system)
-    _division_by_zero(expression)
-    _domain_check(expression)
+    _division_by_zero(simplified)
+    _domain_check(simplified)
     _unsupported_functions(expression)
 
     return expression
@@ -142,8 +143,10 @@ def validate_curve(expression: sp.Expr) -> sp.Expr:
     if unknown:
         raise ParseException("La curva debe estar parametrizada en función a \\(t\\).")
 
-    _division_by_zero(expression)
-    _domain_check(expression)
+    simplified = sp.simplify(expression)
+
+    _division_by_zero(simplified)
+    _domain_check(simplified)
     _unsupported_functions(expression)
 
     return expression
@@ -192,11 +195,9 @@ def _unsupported_functions(expression: sp.Expr):
             ):
                 raise UnsupportedFunctionException(func)
 
-def _division_by_zero(expression: sp.Expr):
+def _division_by_zero(simplified: sp.Expr):
     """Checks if the expression simplifies
     to a division by zero."""
-
-    simplified = sp.simplify(expression)
 
     if (
         simplified.has(sp.zoo) or 
@@ -204,11 +205,9 @@ def _division_by_zero(expression: sp.Expr):
     ):
         raise ParseException("La expresión se simplifica a una división por 0.")
 
-def _domain_check(expression: sp.Expr):
+def _domain_check(simplified: sp.Expr):
     """Checks if the expression simplifies
     to an imaginary number."""
-
-    simplified = sp.simplify(expression)
 
     if simplified.has(sp.I) or simplified.is_real is False:
         raise ParseException("Las expresiones con valores imaginarios no se admiten actualmente.")

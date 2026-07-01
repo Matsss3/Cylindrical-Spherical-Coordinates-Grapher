@@ -32,7 +32,7 @@ class CartesianGrid:
 def _as_float_array(value: ArrayLike) -> NDArray[np.floating]:
     """Convert input to a NumPy floating array without copying unnecessarily."""
 
-    return np.asarray(value, dtype=float)
+    return np.asarray(value, dtype=np.float32)
 
 
 def cylindrical_to_cartesian(r: ArrayLike, theta: ArrayLike, z: ArrayLike) -> CartesianGrid:

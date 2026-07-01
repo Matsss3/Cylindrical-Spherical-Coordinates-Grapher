@@ -19,6 +19,7 @@ from numpy.typing import NDArray
 from sympy.utilities.lambdify import lambdify
 
 from parser import CoordinateSystem, ParsedCurve, ParsedEquation
+from timing import timer
 from transform import cylindrical_to_cartesian, spherical_to_cartesian
 from validation import InternalParseException, ParseException
 
@@ -94,7 +95,7 @@ def _linspace_for(name: str, points: int, ranges: Optional[Dict[str, Tuple[float
         print_name = f"\\(\\{name!r}\\)" if len(name) > 1 else f"\\({name!r}\\)"
         raise InternalParseException(f"No hay un rango configurado para la variable {print_name}.")
     start, stop = source[name]
-    return np.linspace(float(start), float(stop), int(points), dtype=float)
+    return np.linspace(float(start), float(stop), int(points), dtype=np.float32)
 
 
 def _build_lambdified(expression: sp.Expr, symbols: Tuple[sp.Symbol, ...]) -> Callable:
@@ -132,9 +133,11 @@ def sample_explicit_surface(
     a = _linspace_for(indep1.name, res, ranges)
     b = _linspace_for(indep2.name, res, ranges)
 
-    A, B = np.meshgrid(a, b)
+    with timer("meshgrid"):
+        A, B = np.meshgrid(a, b)
 
-    func = _build_lambdified(expression, (sp.Symbol(indep1.name), sp.Symbol(indep2.name)))
+    with timer("build lambdified"):
+        func = _build_lambdified(expression, (sp.Symbol(indep1.name), sp.Symbol(indep2.name)))
     try:
         with np.errstate(
             over="raise",
@@ -142,7 +145,8 @@ def sample_explicit_surface(
             invalid="raise",
             under="ignore",
         ):
-            C = np.asarray(func(A, B), dtype=float)
+            with timer("lambdify"):
+                C = np.asarray(func(A, B), dtype=np.float32)
     except Exception:
         raise ParseException("La expresión produce valores demasiado grandes.")
 
@@ -150,7 +154,7 @@ def sample_explicit_surface(
         raise ParseException("La expresión no se puede evaluar.")
 
     if C.ndim == 0:
-        C = np.full_like(A, C, dtype=float)
+        C = np.full_like(A, C, dtype=np.float32)
     match system:
         case CoordinateSystem.CARTESIAN:
             values = {dep.name: C, indep1.name: A, indep2.name: B}
@@ -192,9 +196,9 @@ def sample_curve(
             invalid="raise",
             under="ignore",
         ):
-            A = f(t)
-            B = g(t)
-            C = h(t)
+            A = np.asarray(f(t), dtype=np.float32)
+            B = np.asarray(g(t), dtype=np.float32)
+            C = np.asarray(h(t), dtype=np.float32)
     except Exception:
         raise ParseException("La expresión produce valores demasiado grandes.")
 
@@ -213,12 +217,12 @@ def sample_curve(
     if ref is None:
         raise ParseException("La curva debe estar parametrizada en función a \\(t\\).")
 
-    if type(A) == int:
-        A = np.full_like(ref, A, dtype=float)
-    if type(B) == int:
-        B = np.full_like(ref, B, dtype=float)
-    if type(C) == int:
-        C = np.full_like(ref, C, dtype=float)
+    # if type(A) == int:
+    #     A = np.full_like(ref, A, dtype=np.float32)
+    # if type(B) == int:
+    #     B = np.full_like(ref, B, dtype=np.float32)
+    # if type(C) == int:
+    #     C = np.full_like(ref, C, dtype=np.float32)
 
     match system:
         case CoordinateSystem.CARTESIAN:
@@ -246,7 +250,8 @@ def sample_implicit_field(
         x = _linspace_for("x", res, ranges)
         y = _linspace_for("y", res, ranges)
         z = _linspace_for("z", res, ranges)
-        X, Y, Z = np.meshgrid(x, y, z, indexing="ij")
+        with timer("meshgrid implicit"):
+            X, Y, Z = np.meshgrid(x, y, z, indexing="ij")
         func = _build_lambdified(parsed.residual, (sp.Symbol("x"), sp.Symbol("y"), sp.Symbol("z")))
         try:
             with np.errstate(
@@ -255,7 +260,8 @@ def sample_implicit_field(
                 invalid="raise",
                 under="ignore",
             ):
-                values = np.asarray(func(X, Y, Z), dtype=float)
+                with timer("lambdify implicit"):
+                    values = np.asarray(func(X, Y, Z), dtype=np.float32)
         except Exception:
             raise ParseException("La expresión produce valores demasiado grandes.")
         if not np.isfinite(values).any():
@@ -277,7 +283,7 @@ def sample_implicit_field(
                 invalid="raise",
                 under="ignore",
             ):
-                values = np.asarray(func(R, T, Z), dtype=float)
+                values = np.asarray(func(R, T, Z), dtype=np.float32)
         except Exception:
             raise ParseException("La expresión produce valores demasiado grandes.")
         if not np.isfinite(values).any():
@@ -312,7 +318,7 @@ def sample_implicit_field(
                 invalid="raise",
                 under="ignore",
             ):
-                values = np.asarray(func(RHO, T, P), dtype=float)
+                values = np.asarray(func(RHO, T, P), dtype=np.float32)
         except Exception:
             raise ParseException("La expresión produce valores demasiado grandes.")
         if not np.isfinite(values).any():
