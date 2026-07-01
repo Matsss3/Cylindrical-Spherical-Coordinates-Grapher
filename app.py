@@ -363,6 +363,16 @@ def update_graph(objects, visibility):
             palette = _SURFACE_PALETTES[trace_idx % len(_SURFACE_PALETTES)]
             accent = palette[2][1]
 
+            _lighting = dict(
+                ambient=0.45,
+                diffuse=0.7,
+                specular=0.45,
+                roughness=0.35,
+                fresnel=0.08
+            )
+
+            _lightpos = dict(x=1500, y=2500, z=3000)
+
             if isinstance(trace, go.Scatter3d):
                 trace.update(
                     line=dict(color=accent, width=5),
@@ -371,7 +381,8 @@ def update_graph(objects, visibility):
             else:
                 trace.colorscale = palette
                 trace.showscale = False
-                trace.opacity = 0.82
+                trace.lighting = _lighting
+                trace.lightposition = _lightpos
 
             trace.hoverlabel=dict(
                 bgcolor="#131e30",
@@ -621,5 +632,5 @@ app.clientside_callback(
 app.title = "Graficador"
 
 if __name__ == "__main__":
-    # app.run(debug=False)
-    app.run(debug=True)
+    app.run(debug=False)
+    # app.run(debug=True)
