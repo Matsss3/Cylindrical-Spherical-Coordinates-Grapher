@@ -196,9 +196,12 @@ def sample_curve(
             invalid="raise",
             under="ignore",
         ):
-            A = np.asarray(f(t), dtype=np.float32)
-            B = np.asarray(g(t), dtype=np.float32)
-            C = np.asarray(h(t), dtype=np.float32)
+            # A = np.asarray(f(t), dtype=np.float32)
+            # B = np.asarray(g(t), dtype=np.float32)
+            # C = np.asarray(h(t), dtype=np.float32)
+            A = f(t)
+            B = g(t)
+            C = h(t)
     except Exception:
         raise ParseException("La expresión produce valores demasiado grandes.")
 
@@ -217,12 +220,12 @@ def sample_curve(
     if ref is None:
         raise ParseException("La curva debe estar parametrizada en función a \\(t\\).")
 
-    # if type(A) == int:
-    #     A = np.full_like(ref, A, dtype=np.float32)
-    # if type(B) == int:
-    #     B = np.full_like(ref, B, dtype=np.float32)
-    # if type(C) == int:
-    #     C = np.full_like(ref, C, dtype=np.float32)
+    if type(A) == int:
+        A = np.full_like(ref, A, dtype=np.float32)
+    if type(B) == int:
+        B = np.full_like(ref, B, dtype=np.float32)
+    if type(C) == int:
+        C = np.full_like(ref, C, dtype=np.float32)
 
     match system:
         case CoordinateSystem.CARTESIAN:

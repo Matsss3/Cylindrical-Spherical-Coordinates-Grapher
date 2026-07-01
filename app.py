@@ -2,6 +2,7 @@ from time import perf_counter
 from typing import Dict, Tuple, Optional
 import re
 import uuid
+import functools
 
 from dash import (
     Dash, 
@@ -30,7 +31,7 @@ def _warmup():
     cache, and lambdify's codegen/printer setup all pay their one-time
     cost at boot instead of on a user's first click."""
     warmup_cases = [
-        ("z=x^2+y^2", "cartesian"),
+        ("x^2+y^2-z=0", "cartesian"),
         ("z=r^2", "cylindrical"),
         ("\\rho=1+\\cos(\\theta)", "spherical"),
     ]
@@ -87,6 +88,8 @@ _AXIS = dict(
     spikethickness=1,
 )
 
+_SAMPLE_CACHE_SIZE = 32
+
 _SURFACE_PALETTES = [
     [[0.0, "#140e00"], [0.35, "#92580a"], [0.65, "#f59e0b"], [1.0, "#fef3c7"]],
     [[0.0, "#04091f"], [0.35, "#1641a0"], [0.65, "#3b82f6"], [1.0, "#dbeafe"]],
@@ -112,6 +115,36 @@ _NAMED_EXPRESSION_RE = re.compile(
     rf"^\s*((?:{_NAME_UNIT})+)\s*(?::|\\colon\b)\s*(.+)$",
     re.DOTALL,
 )
+
+@functools.lru_cache(maxsize=_SAMPLE_CACHE_SIZE)
+def _cached_sample(
+    expression: str,
+    system: str,
+    resolution: int,
+    is_curve: bool
+):
+    if is_curve:
+        with timer("full curve parse time"):
+            parsed = parse_curve_text(expression, system)
+        with timer("full curve sample time"):
+            sample = sample_equation(
+                parsed_curve=parsed, 
+                resolution=resolution
+            )
+        return sample
+    capped_res = max(0, min(resolution, 100))
+
+    with timer("full surface parse time"):
+        parsed = parse_equation_text(expression, system)
+    with timer("full surface sample time"):
+        sample = sample_equation(
+            parsed_equation=parsed, 
+            resolution=resolution, 
+            implicit_resolution=capped_res
+        )
+    return sample
+
+
 
 def split_named_expression(latex: str) -> Tuple[Optional[str], str]:
     """Split a raw mathfield LaTeX value into (name, expression).
@@ -371,29 +404,19 @@ def update_graph(objects, visibility):
         if not visibility.get(obj["id"], True):
             continue
         try:
-            if (
+            is_curve = (
                 obj["expression"].startswith("\\left(") and 
                 obj["expression"].endswith("\\right)") and 
                 "=" not in obj["expression"]
-            ):
-                with timer("full curve parse time"):
-                    parsed = parse_curve_text(obj["expression"], obj["system"])
-                with timer("full curve sample time"):
-                    sample = sample_equation(
-                        parsed_curve=parsed, 
-                        resolution=obj["resolution"]
-                    )
-            else:
-                capped_res = max(0, min(obj["resolution"], 100))
+            )
 
-                with timer("full surface parse time"):
-                    parsed = parse_equation_text(obj["expression"], obj["system"])
-                with timer("full surface sample time"):
-                    sample = sample_equation(
-                        parsed_equation=parsed, 
-                        resolution=obj["resolution"], 
-                        implicit_resolution=capped_res
-                    )
+            sample = _cached_sample(
+                obj["expression"],
+                obj["system"],
+                obj["resolution"],
+                is_curve
+            )
+
             try:
                 with timer("plotly trace render"):
                     trace = renderer.render(sample, mode="trace")
