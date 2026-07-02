@@ -44,7 +44,6 @@ def _warmup():
                 implicit_resolution=20,
             )
         except Exception as e:
-            print(e)
             pass
     try:
         parsed_curve = parse_curve_text("\\left(t,t,t\\right)", "cartesian")
@@ -124,26 +123,21 @@ def _cached_sample(
     is_curve: bool
 ):
     if is_curve:
-        with timer("full curve parse time"):
-            parsed = parse_curve_text(expression, system)
-        with timer("full curve sample time"):
-            sample = sample_equation(
-                parsed_curve=parsed, 
-                resolution=resolution
-            )
+        parsed = parse_curve_text(expression, system)
+        sample = sample_equation(
+            parsed_curve=parsed, 
+            resolution=resolution
+        )
         return sample
     capped_res = max(0, min(resolution, 100))
 
-    with timer("full surface parse time"):
-        parsed = parse_equation_text(expression, system)
-    with timer("full surface sample time"):
-        sample = sample_equation(
-            parsed_equation=parsed, 
-            resolution=resolution, 
-            implicit_resolution=capped_res
-        )
+    parsed = parse_equation_text(expression, system)
+    sample = sample_equation(
+        parsed_equation=parsed, 
+        resolution=resolution, 
+        implicit_resolution=capped_res
+    )
     return sample
-
 
 
 def split_named_expression(latex: str) -> Tuple[Optional[str], str]:
@@ -398,9 +392,7 @@ def update_graph(objects, visibility):
     renderer = Renderer()
     trace_idx = 0
 
-    for i, obj in enumerate(objects):
-        start = perf_counter()
-
+    for obj in objects:
         if not visibility.get(obj["id"], True):
             continue
         try:
@@ -418,8 +410,7 @@ def update_graph(objects, visibility):
             )
 
             try:
-                with timer("plotly trace render"):
-                    trace = renderer.render(sample, mode="trace")
+                trace = renderer.render(sample, mode="trace")
             except Exception:
                 raise ParseException("Superficie no graficable.")
 
@@ -458,8 +449,7 @@ def update_graph(objects, visibility):
             )
             trace.name = obj.get('name', '')
             trace.showlegend = True
-            with timer("figure add"):
-                fig.add_trace(trace)
+            fig.add_trace(trace)
             trace_idx += 1
         except ParseException as e:
             errors[obj["id"]] = e.message
@@ -469,11 +459,6 @@ def update_graph(objects, visibility):
         except Exception as e:
             errors[obj["id"]] = "Error inesperado al procesar la expresión."
             print(e)
-
-        print(
-            f"Object {i}: "
-            f"{(perf_counter()-start):.3f}s"
-        )
 
     fig.update_layout(
         paper_bgcolor="#080d1a",

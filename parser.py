@@ -58,7 +58,6 @@ class ParsedCurve:
     y_expr: sp.Expr
     z_expr: sp.Expr
 
-@timed
 def _parse_latex(expression: str) -> sp.Expr:
     """ Convert LaTeX expression string to sympy string. """
 
@@ -231,8 +230,7 @@ def parse_equation(expression: str, coordinate_system: CoordinateSystem) -> Pars
     lhs = canonicalize(_parse_latex(lhs_text), symbol_table)
     rhs = canonicalize(_parse_latex(rhs_text), symbol_table)
 
-    with timer("validate lhs"):
-        lhs = validate_equation(lhs, coordinate_system)
+    lhs = validate_equation(lhs, coordinate_system)
     rhs = validate_equation(rhs, coordinate_system)
 
     dependent_variable = _detect_dependent_variable(lhs, rhs, coordinate_system, symbol_table)
@@ -240,8 +238,7 @@ def parse_equation(expression: str, coordinate_system: CoordinateSystem) -> Pars
     if explicit and dependent_variable is not None:
         residual = lhs - rhs
     else:
-        with timer("simplify in parser"):
-            residual = sp.simplify(lhs - rhs)
+        residual = sp.simplify(lhs - rhs)
 
     if coordinate_system == CoordinateSystem.CARTESIAN:
         all_vars = (symbol_table["x"], symbol_table["y"], symbol_table["z"])
@@ -305,8 +302,7 @@ def parse_curve(expression: str, coordinate_system: CoordinateSystem) -> ParsedC
     y_expr = canonicalize(_parse_latex(y_expr), symbol_table)
     z_expr = canonicalize(_parse_latex(z_expr), symbol_table)
 
-    with timer("validate x component"):
-        x = validate_curve(x_expr)
+    x = validate_curve(x_expr)
     y = validate_curve(y_expr)
     z = validate_curve(z_expr)
 

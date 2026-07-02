@@ -133,11 +133,9 @@ def sample_explicit_surface(
     a = _linspace_for(indep1.name, res, ranges)
     b = _linspace_for(indep2.name, res, ranges)
 
-    with timer("meshgrid"):
-        A, B = np.meshgrid(a, b)
+    A, B = np.meshgrid(a, b)
 
-    with timer("build lambdified"):
-        func = _build_lambdified(expression, (sp.Symbol(indep1.name), sp.Symbol(indep2.name)))
+    func = _build_lambdified(expression, (sp.Symbol(indep1.name), sp.Symbol(indep2.name)))
     try:
         with np.errstate(
             over="raise",
@@ -145,8 +143,7 @@ def sample_explicit_surface(
             invalid="raise",
             under="ignore",
         ):
-            with timer("lambdify"):
-                C = np.asarray(func(A, B), dtype=np.float32)
+            C = np.asarray(func(A, B), dtype=np.float32)
     except Exception:
         raise ParseException("La expresión produce valores demasiado grandes.")
 
@@ -196,9 +193,6 @@ def sample_curve(
             invalid="raise",
             under="ignore",
         ):
-            # A = np.asarray(f(t), dtype=np.float32)
-            # B = np.asarray(g(t), dtype=np.float32)
-            # C = np.asarray(h(t), dtype=np.float32)
             A = f(t)
             B = g(t)
             C = h(t)
@@ -253,8 +247,7 @@ def sample_implicit_field(
         x = _linspace_for("x", res, ranges)
         y = _linspace_for("y", res, ranges)
         z = _linspace_for("z", res, ranges)
-        with timer("meshgrid implicit"):
-            X, Y, Z = np.meshgrid(x, y, z, indexing="ij")
+        X, Y, Z = np.meshgrid(x, y, z, indexing="ij")
         func = _build_lambdified(parsed.residual, (sp.Symbol("x"), sp.Symbol("y"), sp.Symbol("z")))
         try:
             with np.errstate(
@@ -263,8 +256,7 @@ def sample_implicit_field(
                 invalid="raise",
                 under="ignore",
             ):
-                with timer("lambdify implicit"):
-                    values = np.asarray(func(X, Y, Z), dtype=np.float32)
+                values = np.asarray(func(X, Y, Z), dtype=np.float32)
         except Exception:
             raise ParseException("La expresión produce valores demasiado grandes.")
         if not np.isfinite(values).any():
