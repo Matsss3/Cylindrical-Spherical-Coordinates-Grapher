@@ -140,7 +140,6 @@ def sample_explicit_surface(
         with np.errstate(
             over="raise",
             divide="raise",
-            invalid="raise",
             under="ignore",
         ):
             C = np.asarray(func(A, B), dtype=np.float32)
@@ -190,7 +189,6 @@ def sample_curve(
         with np.errstate(
             over="raise",
             divide="raise",
-            invalid="raise",
             under="ignore",
         ):
             A = f(t)
@@ -253,7 +251,6 @@ def sample_implicit_field(
             with np.errstate(
                 over="raise",
                 divide="raise",
-                invalid="raise",
                 under="ignore",
             ):
                 values = np.asarray(func(X, Y, Z), dtype=np.float32)
@@ -275,7 +272,6 @@ def sample_implicit_field(
             with np.errstate(
                 over="raise",
                 divide="raise",
-                invalid="raise",
                 under="ignore",
             ):
                 values = np.asarray(func(R, T, Z), dtype=np.float32)
@@ -310,7 +306,6 @@ def sample_implicit_field(
             with np.errstate(
                 over="raise",
                 divide="raise",
-                invalid="raise",
                 under="ignore",
             ):
                 values = np.asarray(func(RHO, T, P), dtype=np.float32)

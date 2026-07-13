@@ -23,6 +23,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Mapping, Optional, Tuple
+import re
 
 import sympy as sp
 from latex2sympy2_extended import latex2sympy
@@ -60,10 +61,22 @@ class ParsedCurve:
 
 def _parse_latex(expression: str) -> sp.Expr:
     """ Convert LaTeX expression string to sympy string. """
+    expr = re.sub(
+        r'\\frac\s*([0-9])\s*([0-9])',
+        r'\\frac{\1}{\2}',
+        expression
+    )
+
+    expr = re.sub(
+        r'\\sqrt\s*([0-9])',
+        r'\\sqrt{\1}',
+        expr
+    )
 
     try:
-        return latex2sympy(expression)
-    except Exception:
+        return latex2sympy(expr)
+    except Exception as e:
+        print(e)
         raise ParseException("Error de sintaxis en la expresión.")
 
 

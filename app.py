@@ -17,6 +17,7 @@ from dash import (
     ctx
 )
 from dash.exceptions import PreventUpdate
+from flask import jsonify
 
 from parser import parse_curve_text, parse_equation_text
 import plotly.graph_objects as go
@@ -156,6 +157,15 @@ def split_named_expression(latex: str) -> Tuple[Optional[str], str]:
  
     name, expression = match.groups()
     return name.strip(), expression.strip()
+
+
+@server.route("/healthz")
+def healthz():
+   from sampler import sample_equation
+   from parser import parse_equation_text
+   parsed = parse_equation_text("z=x^2+y^2", "cartesian")
+   sample_equation(parsed_equation=parsed, resolution=30, implicit_resolution=20)
+   return jsonify(status="ok")
 
 
 @callback(
@@ -322,9 +332,6 @@ def show_objects(objects, errors, visibility):
                                 ),
 
                             ],
-                            style={
-                                "overflow-y": "scroll"
-                            }
                         ),
 
                         html.Button(
@@ -686,5 +693,4 @@ app.clientside_callback(
 app.title = "Graficador"
 
 if __name__ == "__main__":
-    # app.run(debug=False)
     app.run(debug=True)
