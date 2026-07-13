@@ -332,6 +332,9 @@ def show_objects(objects, errors, visibility):
                                 ),
 
                             ],
+                            style={
+                                "overflowY": "scroll"
+                            }
                         ),
 
                         html.Button(
