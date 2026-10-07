@@ -192,7 +192,7 @@ def add_object(
     name_counter = name_counter or 0
 
     if expression is None or not expression.strip():
-        return [*objects], ""
+        return [*objects], "", name_counter
 
     name, parsed_expression = split_named_expression(expression.strip())
 
@@ -696,4 +696,4 @@ app.clientside_callback(
 app.title = "Graficador"
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=False)

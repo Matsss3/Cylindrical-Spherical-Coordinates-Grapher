@@ -53,6 +53,7 @@ class ImplicitFieldSample:
     y: NDArray[np.floating]
     z: NDArray[np.floating]
     values: NDArray[np.floating]
+    mask: Optional[NDArray[np.bool_]] = None
 
 
 @dataclass(frozen=True)
@@ -80,8 +81,8 @@ _IMPLICIT_RANGES: Dict[str, Tuple[float, float]] = {
     "x": (-10.0, 10.0),
     "y": (-10.0, 10.0),
     "z": (-10.0, 10.0),
-    "r": (-10.0, 10.0),
-    "theta": (-2.0 * np.pi, 2.0 * np.pi),
+    "r": (0.0, 10.0),
+    "theta": (0.0, 2.0 * np.pi),
     "varphi": (-2.0 * np.pi, 2.0 * np.pi),
     "rho": (-10.0, 10.0),
     "t": (-10.0, 10.0),
@@ -197,13 +198,6 @@ def sample_curve(
     except Exception:
         raise ParseException("La expresión produce valores demasiado grandes.")
 
-    if (
-        not np.isfinite(A).any() or
-        not np.isfinite(B).any() or
-        not np.isfinite(C).any()
-    ):
-        raise ParseException("La expresión no se puede evaluar.")
-
     ref = next(
         (x for x in (A, B, C) if isinstance(x, np.ndarray)),
         None
@@ -212,12 +206,28 @@ def sample_curve(
     if ref is None:
         raise ParseException("La curva debe estar parametrizada en función a \\(t\\).")
 
-    if type(A) == int:
-        A = np.full_like(ref, A, dtype=np.float32)
-    if type(B) == int:
-        B = np.full_like(ref, B, dtype=np.float32)
-    if type(C) == int:
-        C = np.full_like(ref, C, dtype=np.float32)
+    def normalize_component(component):
+        """Return one curve component as a finite array matching ``t``.
+
+        NumPy-backed lambdified expressions return an array when they depend
+        on ``t``, but constants are returned as Python or NumPy scalars.  A
+        Plotly Scatter3d trace requires every coordinate to be an array.
+        """
+
+        try:
+            values = np.asarray(component, dtype=np.float32)
+            if values.ndim == 0:
+                values = np.full_like(t, values, dtype=np.float32)
+            else:
+                values = np.broadcast_to(values, t.shape).astype(np.float32, copy=False)
+        except (TypeError, ValueError):
+            raise ParseException("La expresión no se puede evaluar.")
+
+        if not np.isfinite(values).any():
+            raise ParseException("La expresión no se puede evaluar.")
+        return values
+
+    A, B, C = (normalize_component(component) for component in (A, B, C))
 
     match system:
         case CoordinateSystem.CARTESIAN:
@@ -261,12 +271,36 @@ def sample_implicit_field(
         return ImplicitFieldSample(x=X, y=Y, z=Z, values=values)
 
     if system == CoordinateSystem.CYLINDRICAL:
-        r = _linspace_for("r", res, _IMPLICIT_RANGES)
-        theta = _linspace_for("theta", res, _IMPLICIT_RANGES)
-        z = _linspace_for("z", res, _IMPLICIT_RANGES)
-        X, Y, Z = np.meshgrid(r, theta, z, indexing="ij")
+        source = ranges or _IMPLICIT_RANGES
+        r_start, r_stop = (float(value) for value in source["r"])
+        z_start, z_stop = (float(value) for value in source["z"])
+        theta_start, theta_stop = (
+            float(value)
+            for value in source.get("theta", _IMPLICIT_RANGES["theta"])
+        )
+        radial_min = max(0.0, min(r_start, r_stop))
+        radial_max = max(r_start, r_stop)
+
+        x = np.linspace(-radial_max, radial_max, res, dtype=np.float32)
+        y = np.linspace(-radial_max, radial_max, res, dtype=np.float32)
+        z = np.linspace(z_start, z_stop, res, dtype=np.float32)
+        X, Y, Z = np.meshgrid(x, y, z, indexing="ij")
         R = np.sqrt(X**2 + Y**2)
-        T = np.arctan2(Y, X)
+        T = np.mod(np.arctan2(Y, X), 2.0 * np.pi)
+
+        radial_mask = (R >= radial_min) & (R <= radial_max)
+        theta_span = abs(theta_stop - theta_start)
+        if theta_span >= 2.0 * np.pi:
+            theta_mask = np.ones_like(R, dtype=bool)
+        else:
+            theta_start = np.mod(theta_start, 2.0 * np.pi)
+            theta_stop = np.mod(theta_stop, 2.0 * np.pi)
+            if theta_start <= theta_stop:
+                theta_mask = (T >= theta_start) & (T <= theta_stop)
+            else:
+                theta_mask = (T >= theta_start) | (T <= theta_stop)
+        mask = radial_mask & theta_mask
+
         func = _build_lambdified(parsed.residual, (sp.Symbol("r"), sp.Symbol("theta"), sp.Symbol("z")))
         try:
             with np.errstate(
@@ -279,8 +313,7 @@ def sample_implicit_field(
             raise ParseException("La expresión produce valores demasiado grandes.")
         if not np.isfinite(values).any():
             raise ParseException("La expresión no se puede evaluar.")
-        cart = cylindrical_to_cartesian(R, T, Z)
-        return ImplicitFieldSample(x=cart.x, y=cart.y, z=cart.z, values=values)
+        return ImplicitFieldSample(x=X, y=Y, z=Z, values=values, mask=mask)
 
     if system == CoordinateSystem.SPHERICAL:
         rho = _linspace_for("rho", res, _IMPLICIT_RANGES)

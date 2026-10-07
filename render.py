@@ -206,7 +206,9 @@ class Renderer:
 
             field.values,
 
-            level=0
+            level=0,
+
+            mask=field.mask,
 
         )
 
@@ -257,7 +259,8 @@ class Renderer:
 
         verts, faces, _, _ = marching_cubes(
             field.values,
-            level=0
+            level=0,
+            mask=field.mask,
         )
 
         nx, ny, nz = field.values.shape
