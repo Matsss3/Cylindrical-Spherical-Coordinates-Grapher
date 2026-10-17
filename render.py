@@ -42,6 +42,20 @@ class RendererConfig:
 
     title: str = ""
 
+def _grapher_meta(kind: str, system: Optional[str] = None, **extra) -> dict:
+    """Opaque ``meta.grapher`` dict read by the browser-side interaction layer.
+
+    The renderer does not interpret it; it only forwards what the sampler
+    recorded.  The app adds ``role``, ``objectId`` and ``name``.
+    """
+
+    meta = {"kind": kind}
+    if system is not None:
+        meta["system"] = system
+    meta.update(extra)
+    return {"grapher": meta}
+
+
 
 class Renderer:
 
@@ -142,10 +156,14 @@ class Renderer:
         return self._apply_layout(fig)
 
     def _trace_explicit(self, surface: ExplicitSurfaceSample):
+        extra = surface.native.as_dict() if surface.native is not None else {}
         return go.Surface(
             x=surface.x,
             y=surface.y,
             z=surface.z,
+
+            customdata=surface.dependent,
+            meta=_grapher_meta("surface", **extra),
 
             colorscale='inferno',
             opacity=self.config.surface_opacity,
@@ -183,6 +201,9 @@ class Renderer:
             x=curve.x,
             y=curve.y,
             z=curve.z,
+
+            customadata=curve.native,
+            meta=_grapher_meta("curve", system=curve.system),
 
             mode="lines",
 
@@ -286,6 +307,8 @@ class Renderer:
             i=faces[:, 0],
             j=faces[:, 1],
             k=faces[:, 2],
+
+            meta=_grapher_meta("implicit", system=field.system),
 
             opacity=self.config.implicit_opacity,
             intensity=verts[:,2],

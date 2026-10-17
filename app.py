@@ -21,6 +21,7 @@ from flask import jsonify
 
 from parser import parse_curve_text, parse_equation_text
 import plotly.graph_objects as go
+from interaction import ROLE_BOUNDS, ROLE_MATH, layout_meta
 from render import Renderer
 from sampler import sample_equation
 from timing import timer
@@ -397,6 +398,7 @@ def update_graph(objects, visibility):
             ),
             showlegend=False,
             hoverinfo="skip",
+            meta={"grapher": {"role": ROLE_BOUNDS}},
         )
     )
     renderer = Renderer()
@@ -459,6 +461,14 @@ def update_graph(objects, visibility):
             )
             trace.name = obj.get('name', '')
             trace.showlegend = True
+            trace.meta = {
+                "grapher": {
+                    **trace.meta["grapher"],
+                    "role": ROLE_MATH,
+                    "objectId": obj["id"],
+                    "name": obj.get("name", ""),
+                }
+            }
             fig.add_trace(trace)
             trace_idx += 1
         except ParseException as e:
@@ -500,6 +510,7 @@ def update_graph(objects, visibility):
             namelength=-1,
         ),
         margin=dict(l=0, r=0, b=0, t=0),
+        meta=layout_meta(),
         uirevision="graph",
         legend=dict(
             bgcolor="rgba(14, 22, 40, 0.85)",

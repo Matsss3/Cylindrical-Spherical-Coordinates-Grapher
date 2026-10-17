@@ -23,6 +23,30 @@ from timing import timer
 from transform import cylindrical_to_cartesian, spherical_to_cartesian
 from validation import InternalParseException, ParseException
 
+AxisSpec = Tuple[float, float, int]
+
+@dataclass(frozen=True)
+class NativeMeta:
+    """Describes how to recover the native (pre-conversion) coordinates of a
+    sampled surface vertex.
+    """
+
+    system: str
+    dep: str
+    indep: Tuple[str, str]
+    axes: Tuple[AxisSpec, AxisSpec]
+
+    def as_dict(self) -> Dict[str, object]:
+        return {
+            "system": self.system,
+            "dep": self.dep,
+            "indep": list(self.indep),
+            "axes": {
+                "a": list(self.axes[0]),
+                "b": list(self.axes[1]),
+            },
+        }
+
 
 @dataclass(frozen=True)
 class ExplicitSurfaceSample:
@@ -33,6 +57,8 @@ class ExplicitSurfaceSample:
     z: NDArray[np.floating]
     parameter_a: NDArray[np.floating]
     parameter_b: NDArray[np.floating]
+    dependent: Optional[NDArray[np.floating]] = None
+    native: Optional[NativeMeta] = None
 
 
 @dataclass(frozen=True)
@@ -43,6 +69,8 @@ class CurveSample:
     y: NDArray[np.floating]
     z: NDArray[np.floating]
     parameter: NDArray[np.floating]
+    native: Optional[NDArray[np.floating]] = None
+    system: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -54,6 +82,7 @@ class ImplicitFieldSample:
     z: NDArray[np.floating]
     values: NDArray[np.floating]
     mask: Optional[NDArray[np.bool_]] = None
+    system: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -88,15 +117,22 @@ _IMPLICIT_RANGES: Dict[str, Tuple[float, float]] = {
     "t": (-10.0, 10.0),
 }
 
-def _linspace_for(name: str, points: int, ranges: Optional[Dict[str, Tuple[float, float]]] = None) -> NDArray[np.floating]:
-    """Build a 1D sampling grid for a variable name."""
+def _range_for(name: str, ranges: Optional[Dict[str, Tuple[float, float]]] = None) -> Tuple[float, float]:
+    """Look up the (start, stop) range configured for a variable name."""
 
     source = ranges or _DEFAULT_RANGES
     if name not in source:
         print_name = f"\\(\\{name!r}\\)" if len(name) > 1 else f"\\({name!r}\\)"
         raise InternalParseException(f"No hay un rango configurado para la variable {print_name}.")
     start, stop = source[name]
-    return np.linspace(float(start), float(stop), int(points), dtype=np.float32)
+    return float(start), float(stop)
+    
+
+def _linspace_for(name: str, points: int, ranges: Optional[Dict[str, Tuple[float, float]]] = None) -> NDArray[np.floating]:
+    """Build a 1D sampling grid for a variable name."""
+
+    start, stop = _range_for(name, ranges)
+    return np.linspace(start, stop, int(points), dtype=np.float32)
 
 
 def _build_lambdified(expression: sp.Expr, symbols: Tuple[sp.Symbol, ...]) -> Callable:
@@ -152,11 +188,25 @@ def sample_explicit_surface(
 
     if C.ndim == 0:
         C = np.full_like(A, C, dtype=np.float32)
+
+    native = NativeMeta(
+        system=system.value,
+        dep=dep.name,
+        indep=(indep1.name, indep2.name),
+        axes=(
+            (*_range_for(indep1.name, ranges), res),
+            (*_range_for(indep2.name, ranges), res),
+        ),
+    )
+
     match system:
         case CoordinateSystem.CARTESIAN:
             values = {dep.name: C, indep1.name: A, indep2.name: B}
             a_i, b_i, c_i = values["x"], values["y"], values["z"]
-            return ExplicitSurfaceSample(x=a_i, y=b_i, z=c_i, parameter_a=A, parameter_b=B)
+            return ExplicitSurfaceSample(
+                x=a_i, y=b_i, z=c_i, parameter_a=A, parameter_b=B,
+                dependent=None, native=native,
+            )
         case CoordinateSystem.CYLINDRICAL:
             values = {dep.name: C, indep1.name: A, indep2.name: B}
             a_i, b_i, c_i = values["r"], values["theta"], values["z"]
@@ -165,7 +215,10 @@ def sample_explicit_surface(
             values = {dep.name: C, indep1.name: A, indep2.name: B}
             a_i, b_i, c_i = values["rho"], values["theta"], values["varphi"]
             cart = spherical_to_cartesian(a_i, b_i, c_i)
-    return ExplicitSurfaceSample(x=cart.x, y=cart.y, z=cart.z, parameter_a=A, parameter_b=B)
+    return ExplicitSurfaceSample(
+        x=cart.x, y=cart.y, z=cart.z, parameter_a=A, parameter_b=B,
+        dependent=C, native=native,
+    )
 
 
 def sample_curve(
@@ -207,12 +260,7 @@ def sample_curve(
         raise ParseException("La curva debe estar parametrizada en función a \\(t\\).")
 
     def normalize_component(component):
-        """Return one curve component as a finite array matching ``t``.
-
-        NumPy-backed lambdified expressions return an array when they depend
-        on ``t``, but constants are returned as Python or NumPy scalars.  A
-        Plotly Scatter3d trace requires every coordinate to be an array.
-        """
+        """Return one curve component as a finite array matching ``t``."""
 
         try:
             values = np.asarray(component, dtype=np.float32)
@@ -228,15 +276,21 @@ def sample_curve(
         return values
 
     A, B, C = (normalize_component(component) for component in (A, B, C))
+    # Concat into 2 dimensions and then transpose
+    native = np.stack((A, B, C, t), axis=1).astype(np.float32, copy=False)
 
     match system:
         case CoordinateSystem.CARTESIAN:
-            return CurveSample(x=A, y=B, z=C, parameter=t)
+            return CurveSample(
+                x=A, y=B, z=C, parameter=t,
+                native=native, system=system.value)
         case CoordinateSystem.CYLINDRICAL:
             cart = cylindrical_to_cartesian(A, B, C)
         case CoordinateSystem.SPHERICAL:
             cart = spherical_to_cartesian(A, B, C)
-    return CurveSample(x=cart.x, y=cart.y, z=cart.z, parameter=t)
+    return CurveSample(
+        x=cart.x, y=cart.y, z=cart.z, parameter=t,
+        native=native, system=system.value)
 
 
 def sample_implicit_field(
@@ -268,7 +322,7 @@ def sample_implicit_field(
             raise ParseException("La expresión produce valores demasiado grandes.")
         if not np.isfinite(values).any():
             raise ParseException("La expresión no se puede evaluar.")
-        return ImplicitFieldSample(x=X, y=Y, z=Z, values=values)
+        return ImplicitFieldSample(x=X, y=Y, z=Z, values=values, system=system.value)
 
     if system == CoordinateSystem.CYLINDRICAL:
         source = ranges or _IMPLICIT_RANGES
@@ -313,7 +367,7 @@ def sample_implicit_field(
             raise ParseException("La expresión produce valores demasiado grandes.")
         if not np.isfinite(values).any():
             raise ParseException("La expresión no se puede evaluar.")
-        return ImplicitFieldSample(x=X, y=Y, z=Z, values=values, mask=mask)
+        return ImplicitFieldSample(x=X, y=Y, z=Z, values=values, mask=mask, system=system.value)
 
     if system == CoordinateSystem.SPHERICAL:
         rho = _linspace_for("rho", res, _IMPLICIT_RANGES)
@@ -347,7 +401,7 @@ def sample_implicit_field(
         if not np.isfinite(values).any():
             raise ParseException("La expresión no se puede evaluar.")
         cart = spherical_to_cartesian(RHO, T, P)
-        return ImplicitFieldSample(x=cart.x, y=cart.y, z=cart.z, values=values)
+        return ImplicitFieldSample(x=cart.x, y=cart.y, z=cart.z, values=values, system=system.value)
 
     raise InternalParseException(f"Sistema coordinado no admitido: {system!r}")
 
