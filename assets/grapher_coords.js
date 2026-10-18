@@ -76,7 +76,7 @@
                     y: native.r * Math.sin(native.theta),
                     z: native.z,
                 };
-            case 'spherial':
+            case 'spherical':
                 const s = Math.sin(native.varphi);
                 return {
                     x: native.rho * s * Math.cos(native.theta),

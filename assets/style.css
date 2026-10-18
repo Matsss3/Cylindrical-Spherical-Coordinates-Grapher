@@ -403,6 +403,22 @@ hr {
 
 .graph { height: 100vh; }
 
+/* ─── Graph hober ────────────────────────────────────────────── */
+.grapher-hover-on g.hovertext {
+    display: none !important;
+}
+
+.coords-status {
+    margin-top: 4px;
+    font-size: 12px;
+    line-height: 1.35;
+    color: '#fca5a5';
+}
+
+.coords-status:empty {
+    display: none;
+}
+
 /* ─── Responsive ─────────────────────────────────────────────── */
 @media (max-width: 900px) {
     .main-layout {

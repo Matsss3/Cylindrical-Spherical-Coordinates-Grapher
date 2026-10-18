@@ -64,11 +64,18 @@
 
     function checkSupport(gd) {
         const Plotly = root.Plotly;
-        if (!Plotly || typeof gd.on !== 'function') return { ok: false, reason: MSG.noPlotly };
+        if (!Plotly || typeof gd.on !== 'function') {
+            console.log(MSG.noPlotly + ' 0'); 
+            return { ok: false, reason: MSG.noPlotly };
+        }
         const layoutMeta = gd._fullLayout && gd._fullLayout.meta;
         const g = layoutMeta && layoutMeta.grapher;
-        if (!g || !g.plotly) return { ok: false, reason: MSG.noMeta };
+        if (!g || !g.plotly) {
+            console.log(MSG.noMeta + ' 0');
+            return { ok: false, reason: MSG.noMeta };
+        }
         if (String(Plotly.version) !== String(g.plotly)) {
+            console.log(MSG.version(g.plotly, Plotly.version));
             return { ok: false, reason: MSG.version(g.plotly, Plotly.version) };
         }
         return { ok: true };
@@ -107,4 +114,95 @@
         if (Object.keys(upd).length) root.Plotly.relayout(inst.gd, upd);
     }
 
+    function onReact(inst) {
+        inst.hover.reset();
+        inst.backend.reset();
+        if (inst.active) {
+            inst.gd.classList.add(ACTIVE_CLASS);
+            inst.backend.ensure();
+            spikesOff(inst);
+        }
+    }
+
+    function attach(gd) {
+        if (!gd) {
+            console.log(MSG.noPlotly + ' 1');
+            return { ok: false, reason: MSG.noPlotly };
+        }
+        if (gd.__grapherBound) return { ok: true };
+
+        const support = checkSupport(gd);
+        if (!support.ok) return support;
+
+        const inst = {
+            gd: gd,
+            active: false,
+            savedSpikes: null,
+            backend: null,
+            hover: null,
+        };
+        inst.backend = backendModule().create(gd);
+        inst.hover = hoverModule().create(gd, inst.backend);
+        inst.hover.bind();
+        gd.on('plotly_react', function () { onReact(inst); });
+
+        gd.__grapher = inst;
+        gd.__grapherBound = true;
+        return { ok: true };
+    }
+
+    function setActive(gd, on) {
+        if (!gd) {
+            console.log(MSG.noPlotly + ' 2');
+            return { ok: false, reason: MSG.noPlotly };
+        }
+        const att = attach(gd);
+        if (!att.ok) return att;
+        const inst = gd.__grapher;
+
+        if (on) {
+            const ens = inst.backend.ensure();
+            if (!ens.ok) {
+                console.log(MSG.internals + ' ' + ens.reason + ' 0');
+                return { ok: false, reason: MSG.internals, detail: ens.reason };
+            }
+            inst.active = true;
+            inst.backend.setActive(true);
+            inst.hover.setActive(true);
+            gd.classList.add(ACTIVE_CLASS);
+            spikesOff(inst);
+        } else {
+            inst.active = false;
+            inst.hover.setActive(false);
+            inst.backend.setActive(false);
+            gd.classList.remove(ACTIVE_CLASS);
+            spikesRestore(inst);
+        }
+        return { ok: true };
+    }
+
+    function isActive(gd) {
+        return !!(gd && gd.__grapher && gd.__grapher.active);
+    }
+
+    function get(gd) {
+        return gd && gd.__grapher ? gd.__grapher : null;
+    }
+
+    const api = {
+        ACTIVE_CLASS: ACTIVE_CLASS,
+        MESSAGES: MSG,
+        findGraph: findGraph,
+        whenReady: whenReady,
+        attach: attach,
+        setActive: setActive,
+        isActive: isActive,
+        get: get,
+    };
+
+    if (typeof module === 'object' && module && module.exports) {
+        module.exports = api;
+    } else {
+        root.GrapherInteraction = api;
+    }
 })(typeof globalThis !== 'undefined' ? globalThis : this);
