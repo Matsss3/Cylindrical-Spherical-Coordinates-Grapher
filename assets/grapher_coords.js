@@ -57,7 +57,7 @@
     * on either side.
     */
     function wrapTheta(theta) {
-        let t = theta & TWO_PI;
+        let t = theta % TWO_PI;
         if (t < 0) t += TWO_PI;
         if (t < THETA_SNAP || TWO_PI - t < THETA_SNAP) t = 0;
         return nz(t);

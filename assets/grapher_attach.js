@@ -64,20 +64,14 @@
 
     function checkSupport(gd) {
         const Plotly = root.Plotly;
-        if (!Plotly || typeof gd.on !== 'function') {
-            console.log(MSG.noPlotly + ' 0'); 
-            return { ok: false, reason: MSG.noPlotly };
-        }
+        if (!Plotly || typeof gd.on !== 'function') return { ok: false, reason: MSG.noPlotly };
         const layoutMeta = gd._fullLayout && gd._fullLayout.meta;
         const g = layoutMeta && layoutMeta.grapher;
         if (!g || !g.plotly) {
             console.log(MSG.noMeta + ' 0');
             return { ok: false, reason: MSG.noMeta };
         }
-        if (String(Plotly.version) !== String(g.plotly)) {
-            console.log(MSG.version(g.plotly, Plotly.version));
-            return { ok: false, reason: MSG.version(g.plotly, Plotly.version) };
-        }
+        if (String(Plotly.version) !== String(g.plotly)) return { ok: false, reason: MSG.version(g.plotly, Plotly.version) };
         return { ok: true };
     }
 
@@ -125,10 +119,7 @@
     }
 
     function attach(gd) {
-        if (!gd) {
-            console.log(MSG.noPlotly + ' 1');
-            return { ok: false, reason: MSG.noPlotly };
-        }
+        if (!gd) return { ok: false, reason: MSG.noPlotly };
         if (gd.__grapherBound) return { ok: true };
 
         const support = checkSupport(gd);
@@ -152,20 +143,14 @@
     }
 
     function setActive(gd, on) {
-        if (!gd) {
-            console.log(MSG.noPlotly + ' 2');
-            return { ok: false, reason: MSG.noPlotly };
-        }
+        if (!gd) return { ok: false, reason: MSG.noPlotly };
         const att = attach(gd);
         if (!att.ok) return att;
         const inst = gd.__grapher;
 
         if (on) {
             const ens = inst.backend.ensure();
-            if (!ens.ok) {
-                console.log(MSG.internals + ' ' + ens.reason + ' 0');
-                return { ok: false, reason: MSG.internals, detail: ens.reason };
-            }
+            if (!ens.ok) return { ok: false, reason: MSG.internals, detail: ens.reason };
             inst.active = true;
             inst.backend.setActive(true);
             inst.hover.setActive(true);

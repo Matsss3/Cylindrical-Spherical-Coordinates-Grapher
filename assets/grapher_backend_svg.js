@@ -78,37 +78,19 @@
             const fullLayout = gd && gd._fullLayout;
             const sceneLayout = fullLayout && fullLayout.scene;
             const scene = sceneLayout && sceneLayout._scene;
-            if (!scene) {
-                console.log('scene 1');
-                return { ok: false, reason: 'scene' };
-            }
+            if (!scene) return { ok: false, reason: 'scene' };
             const glplot = scene.glplot;
-            if (!glplot) {
-                console.log('glplot 1');
-                return { ok: false, reason: 'glplot' };
-            } 
+            if (!glplot) return { ok: false, reason: 'glplot' };
             const cp = glplot.cameraParams;
-            if (!cp || !cp.view || !cp.projection || !cp.model) {
-                console.log('cameraParams 2');
-                return { ok: false, reason: 'cameraParams' };
-            }
+            if (!cp || !cp.view || !cp.projection || !cp.model) return { ok: false, reason: 'cameraParams' };
 
             const ds = scene.dataScale;
-            if (!ds || ds.length < 3) {
-                console.log('dataScale 1');
-                return { ok: false, reason: 'dataScale' };
-            }
+            if (!ds || ds.length < 3) return { ok: false, reason: 'dataScale' };
             const container = scene.container;
-            if (!container || !container.style) {
-                console.log('container 1');
-                return { ok: false, reason: 'container' };
-            }
+            if (!container || !container.style) return { ok: false, reason: 'container' };
             const glContainer = gd.querySelector('.gl-container');
             const host = glContainer && glContainer.parentNode;
-            if (!host) {
-                console.log('gl-container 1');
-                return { ok: false, reason: 'gl-container' };
-            }
+            if (!host) return { ok: false, reason: 'gl-container' };
             return { 
                 ok: true,
                 scene: scene, 
@@ -118,7 +100,6 @@
                 host: host
             };
         } catch (err) {
-            console.log('exception 1:' + String(err && err.message));
             return { ok: false, reason: 'exception: ' + String(err && err.message) };
         }
     }
@@ -385,7 +366,7 @@
     };
 
     Backend.prototype._scheduleRetry = function () {
-        if (!this._retryFrame || typeof requestAnimationFrame !== 'function') return;
+        if (this._retryFrame || typeof requestAnimationFrame !== 'function') return;
         const self = this;
         this._retryFrame = requestAnimationFrame(function () {
             self._retryFrame = 0;
