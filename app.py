@@ -750,7 +750,7 @@ app.clientside_callback(
         return window.dash_clientside.no_update;
     }
     """,
-    Output("coords-toggle", "data-attached"),
+    Output("coords-status", "data-attached"),
     Input("graph", "figure")
 )
 
