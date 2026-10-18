@@ -539,6 +539,26 @@ app.layout = html.Div(
 
                         html.Div(
                             [
+                                dcc.Checklist(
+                                    id="coords-toggle",
+                                    options=[
+                                        {
+                                            "label": "Mostrar coordenadas",
+                                            "value": "on",
+                                        }
+                                    ],
+                                    value=[],
+                                ),
+                                html.Div(
+                                    id="coords-status",
+                                    className="coords-status",
+                                ),
+                            ],
+                            className="control-group"
+                        ),
+
+                        html.Div(
+                            [
                                 html.Label("Sistema"),
                                 dcc.Dropdown(
                                     id="coordinate-system",
@@ -704,7 +724,69 @@ app.clientside_callback(
     Input("object-list", "children")
 )
 
+app.clientside_callback(
+    """
+    function(figure) {
+        if (!window.GrapherInteraction) return window.dash_clientside.no_update;
+
+        window.GrapherInteraction.whenReady('graph', (gd) => {
+            const result = window.GrapherInteraction.attach(gd);
+            if (!result.ok) {
+                dash_clientside.set_props('coords-toggle', {
+                    value: [],
+                    options: [{
+                        label: 'Mostrar coordenadas',
+                        value: 'on',
+                        disabled: true
+                    }]
+                });
+
+                dash_clientside.set_props('coords-status', {
+                    children: result.reason
+                });
+            }
+        });
+
+        return window.dash_clientside.no_update;
+    }
+    """,
+    Output("coords-toggle", "data-attached"),
+    Input("graph", "figure")
+)
+
+app.clientside_callback(
+    """
+    function(value) {
+        const on = Array.isArray(value) && value.indexOf('on') !== -1;
+        if (!window.GrapherInteraction) return window.dash_clientside.no_update;
+
+        window.GrapherInteraction.whenReady('graph', (gd) => {
+            const result = window.GrapherInteraction.setActive(gd, on);
+            if (!result.ok && on) {
+                dash_clientside.set_props('coords-toggle', {
+                    value: [],
+                    options: [{
+                        label: 'Mostrar coordenadas',
+                        value: 'on',
+                        disabled: true
+                    }]
+                });
+
+                dash_clientside.set_props('coords-status', {
+                    children: result.reason
+                });
+            }
+        });
+
+        return window.dash_clientside.no_update;
+    }
+    """,
+    Output("coords-status", "data-active"),
+    Input("coords-toggle", "value"),
+    prevent_initial_call=True
+)
+
 app.title = "Graficador"
 
 if __name__ == "__main__":
-    app.run(debug=False)
+    app.run(debug=True)

@@ -202,7 +202,7 @@ class Renderer:
             y=curve.y,
             z=curve.z,
 
-            customadata=curve.native,
+            customdata=curve.native,
             meta=_grapher_meta("curve", system=curve.system),
 
             mode="lines",
