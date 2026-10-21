@@ -33,8 +33,9 @@
         if (typeof require === 'function') return require(file);
         throw new Error(globalName + 'is not loaded; check script order in assets/.');
     }
-    function backendModule() { return lazy('GrapherBackendSvg', ''); }
-    function hoverModule() { return lazy('GrapherHover', ''); }
+    function backendModule() { return lazy('GrapherBackendSvg', './grapher_readout.js'); }
+    function hoverModule() { return lazy('GrapherHover', './grapher_hover.js'); }
+    function readoutModule() { return lazy('GrapherReadout', './grapher_readout.js') };
 
     function findGraph(graphId) {
         const host = document.getElementById(graphId);
@@ -67,10 +68,7 @@
         if (!Plotly || typeof gd.on !== 'function') return { ok: false, reason: MSG.noPlotly };
         const layoutMeta = gd._fullLayout && gd._fullLayout.meta;
         const g = layoutMeta && layoutMeta.grapher;
-        if (!g || !g.plotly) {
-            console.log(MSG.noMeta + ' 0');
-            return { ok: false, reason: MSG.noMeta };
-        }
+        if (!g || !g.plotly) return { ok: false, reason: MSG.noMeta };
         if (String(Plotly.version) !== String(g.plotly)) return { ok: false, reason: MSG.version(g.plotly, Plotly.version) };
         return { ok: true };
     }
@@ -118,9 +116,23 @@
         }
     }
 
-    function attach(gd) {
+    function ensureReadout(inst, opts) {
+        if (inst.readout || !opts || !opts.readout) return;
+        try {
+            inst.readout = readoutModule().create(inst.gd, opts.readout);
+            if (inst.active) inst.readout.setActive(true);
+        } catch (err) {
+            inst.readout = null;
+            console.warn('[grapher] readout unavailable: ', err);
+        }
+    }
+
+    function attach(gd, opts) {
         if (!gd) return { ok: false, reason: MSG.noPlotly };
-        if (gd.__grapherBound) return { ok: true };
+        if (gd.__grapherBound) {
+            ensureReadout(gd.__grapher, opts);
+            return { ok: true };
+        }
 
         const support = checkSupport(gd);
         if (!support.ok) return support;
@@ -131,10 +143,16 @@
             savedSpikes: null,
             backend: null,
             hover: null,
+            readout: null,
         };
         inst.backend = backendModule().create(gd);
-        inst.hover = hoverModule().create(gd, inst.backend);
+        inst.hover = hoverModule().create(gd, inst.backend, {
+            onChange: function (state) {
+                if (inst.readout) inst.readout.update(state);
+            },
+        });
         inst.hover.bind();
+        ensureReadout(inst, opts);
         gd.on('plotly_react', function () { onReact(inst); });
 
         gd.__grapher = inst;
@@ -153,6 +171,7 @@
             if (!ens.ok) return { ok: false, reason: MSG.internals, detail: ens.reason };
             inst.active = true;
             inst.backend.setActive(true);
+            if (inst.readout) inst.readout.setActive(true);
             inst.hover.setActive(true);
             gd.classList.add(ACTIVE_CLASS);
             spikesOff(inst);
@@ -160,6 +179,7 @@
             inst.active = false;
             inst.hover.setActive(false);
             inst.backend.setActive(false);
+            if (inst.readout) inst.readout.setActive(false);
             gd.classList.remove(ACTIVE_CLASS);
             spikesRestore(inst);
         }

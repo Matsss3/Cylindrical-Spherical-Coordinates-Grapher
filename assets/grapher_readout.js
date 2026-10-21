@@ -150,6 +150,64 @@
             refs.system.textContent = SYSTEM_NAME[system] || system;
             renderMath(refs.body);
         }
+
+        function update(state) {
+            if (!st.active) return;
+            if (!state) {
+                if (st.structure !== null) showIdle();
+                return;
+            }
+            const structure = state.system + (state.t !== undefined ? '+t' : '');
+            if (structure !== st.structure) {
+                build(state);
+                st.structure = structure;
+            }
+            const name = state.name === undefined || state.name === null ? '' : String(state.name);
+            if (name !== st.name) {
+                st.name = name;
+                refs.name.textContent = name ? '$$' + name + '$$' : '';
+                if (name) renderMath(refs.name);
+            }
+            for (let i = 0; i < refs.rows.length; i++) {
+                const r = refs.rows[i];
+                const text = valueText(state, r.block, r.key);
+                if (text !== r.text) {
+                    r.value.textContent = text;
+                    r.text = text;
+                }
+            }
+            if (refs.t) refs.t.textContent = format().fmtNum(state.t, 3);
+        }
+
+        function setActive(on) {
+            const was = st.active;
+            st.active = !!on;
+            if (st.active) {
+                showIdle();
+                host.classList.add('is-on');
+            } else {
+                host.classList.remove('is-on');
+                st.structure = null;
+            }
+            if (was !== st.active) resizeGraph();
+        }
+
+        function reset() {
+            if (st.active) showIdle();
+        }
+
+        return { setActive: setActive, update: update, reset: reset, element: card };
     }
 
+    const api = {
+        IDLE_TEXT: IDLE_TEXT,
+        valueText: valueText,
+        create: create,
+    };
+
+    if (typeof module === 'object' && module && module.exports) {
+        module.exports = api;
+    } else {
+        root.GrapherReadout = api;
+    }
 })(typeof globalThis !== 'undefined' ? globalThis : this)

@@ -403,7 +403,7 @@ hr {
 
 .graph { height: 100vh; }
 
-/* ─── Graph hober ────────────────────────────────────────────── */
+/* ─── Graph hover ────────────────────────────────────────────── */
 .grapher-hover-on g.hovertext {
     display: none !important;
 }
@@ -411,12 +411,204 @@ hr {
 .coords-status {
     margin-top: 4px;
     font-size: 12px;
-    line-height: 1.35;
-    color: '#fca5a5';
+    line-init: 1.35;
+    color: #fca5a5;
 }
 
 .coords-status:empty {
     display: none;
+}
+
+#coords-toggle {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+#coords-toggle label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-subtle);
+    border-radius: 7px;
+    padding: 10px 12px;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: border-color 0.15s, background-color 0.15s;
+    user-select: none;
+}
+
+#coords-toggle label:hover {
+    border-color: var(--border-mid);
+    background: var(--bg-card);
+}
+
+#coords-toggle input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    background: var(--bg-deep);
+    border: 1px solid var(--border-mid);
+    border-radius: 4px;
+    cursor: pointer;
+    display: grid;
+    place-content: center;
+    margin: 0;
+    transition: background 0.15s, border-color 0.15s;
+    flex-shrink: 0;
+}
+
+#coords-toggle input[type="checkbox"]::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    transform: scale(0);
+    transition: 120ms transform ease-in-out;
+    box-shadow: inset 1em 1em var(--accent-amber);
+    border-radius: 2px;
+}
+
+#coords-toggle input[type="checkbox"]:checked {
+    background: var(--bg-input);
+    border-color: var(--accent-amber);
+}
+
+#coords-toggle input[type="checkbox"]:checked::before {
+    transform: scale(1);
+}
+
+/* ─── Readout card ───────────────────────────────────────────── */
+.coords-readout {
+    display: none;
+
+    position: absolute;
+    top: 40px;
+    right: 16px;
+    width: 280px;
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+    z-index: 1000;
+    pointer-events: auto;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+}
+
+.coords-readout.is-on {
+    display: block;
+}
+
+.graph-container.has-readout:has(.coords-readout.is-on) {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 12px;
+}
+
+.graph-container.has-readout:has(.coords-readout.is-on) > .graph {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.graph-container.has-readout:has(.coords-readout.is-on) > .coords-readout {
+    flex: 0 0 260px;
+    width: 260px;
+    max-height: 100%;
+    overflow-y: auto;
+}
+
+.coords-card {
+    box-sizing: border-box;
+    padding: 14px 16px;
+    background: #0e1628;
+    border: 1px solid rgba(74, 90, 114, 0.3);
+    border-radius: 10px;
+    color: #e2e8f0;
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    font-size: 13px;
+    line-height: 1.4;
+    backdrop-filter: blur(8px);
+}
+
+.coords-card-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    min-height: 20px;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(74, 90, 114, 0.3);
+}
+
+.coords-card.is-idle .coords-card-title {
+    display: none;
+}
+
+.coords-card-name {
+    font-weight: 600;
+    color: #f59e0b;
+    overflow-wrap: anywhere;
+}
+
+.coords-card-system {
+    flex: none;
+    font-size: 11px;
+    letter-spacing: 0.04rem;
+    text-transform: uppercase;
+    color: #94a3b8;
+}
+
+.coords-idle {
+    color: #94a3b8;
+}
+
+.coords-section + .coords-section {
+    margin-top: 10px;
+}
+
+.coords-section-title {
+    margin-bottom: 4px;
+    font-size: 11px;
+    letter-spacing: 0.04rem;
+    text-transform: uppercase;
+    color: #94a3b8;
+}
+
+.coords-row {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 2px 0;
+}
+
+.coords-key {
+    margin-left: 5px;
+    font-size: 1.2rem;
+    flex: 0 0 28px;
+    color: #cbd5e1;
+}
+
+.coords-val {
+    flex: 1 1 auto;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+}
+
+.coords-row-t {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(74, 90, 114, 0.3);
+}
+
+.coords-convention {
+    margin-top: 12px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(74, 90, 114, 0.3);
+    font-size: 11px;
+    color: #94a3b8;
 }
 
 /* ─── Responsive ─────────────────────────────────────────────── */
@@ -430,11 +622,39 @@ hr {
         width: 100%;
         border-right: none;
         border-top: 1px solid var(--border-subtle);
-        order: 2;
+        order: 3;
     }
 
-    .graph-container { order: 1; height: 50vh; }
-    .graph           { height: 50vh; }
+    .graph-container { 
+        order: 1; 
+        display: flex;
+        flex-direction: column !important;
+        height: auto !important;
+        background: var(--bg-deep);
+    }
+
+    .graph { 
+        height: 45vh !important;
+        width: 100%;
+        order: 1;
+    }
+
+    .coords-readout {
+        display: none;
+        position: static !important;
+        width: 100% !important;
+        max-height: 220px !important;
+        order: 2;
+        margin: 0;
+        border-radius: 0;
+        border-top: 1px solid var(--border-subtle);
+        border-bottom: 1px solid var(--border-subtle);
+        box-shadow: none;
+    }
+
+    .coords-readout.is-on {
+        display: block;
+    }
 
     .object-list { max-height: 300px; }
 

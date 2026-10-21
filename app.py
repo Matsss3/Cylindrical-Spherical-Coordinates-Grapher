@@ -626,10 +626,14 @@ app.layout = html.Div(
                         dcc.Graph(
                             id="graph",
                             className="graph"
-                        )
+                        ),
 
+                        html.Div(
+                            id="coords-readout",
+                            className="coords-readout",
+                        ),
                     ],
-                    className="graph-container"
+                    className="graph-container has-readout"
                 ),
 
             ],
@@ -681,7 +685,10 @@ app.clientside_callback(
         ];
         mf.inlineShortcuts = {
             ...mf.inlineShortcuts,
-            "phi": "\\\\varphi"
+            "ro": "\\\\rho",
+            "tita": "\\\\theta",
+            "fi": "\\\\varphi",
+            "phi": "\\\\varphi",
         };
 
         return window.dash_clientside.no_update;
@@ -730,7 +737,9 @@ app.clientside_callback(
         if (!window.GrapherInteraction) return window.dash_clientside.no_update;
 
         window.GrapherInteraction.whenReady('graph', (gd) => {
-            const result = window.GrapherInteraction.attach(gd);
+            const result = window.GrapherInteraction.attach(gd, {
+                readout: document.getElementById('coords-readout'),
+            });
             if (!result.ok) {
                 dash_clientside.set_props('coords-toggle', {
                     value: [],
@@ -761,7 +770,9 @@ app.clientside_callback(
         if (!window.GrapherInteraction) return window.dash_clientside.no_update;
 
         window.GrapherInteraction.whenReady('graph', (gd) => {
-            const result = window.GrapherInteraction.setActive(gd, on);
+            const result = window.GrapherInteraction.setActive(gd, on, {
+                readout: document.getElementById('coords-readout'),
+            });
             if (!result.ok && on) {
                 dash_clientside.set_props('coords-toggle', {
                     value: [],
