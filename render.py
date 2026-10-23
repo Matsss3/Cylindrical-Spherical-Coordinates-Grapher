@@ -42,6 +42,92 @@ class RendererConfig:
 
     title: str = ""
 
+AXIS_LINE_COLOR: str = "rgba(245, 158, 11, 0.85)"
+AXIS_TICK_COLOR: str = "#64748b"
+AXIS_TITLE_COLOR: str = "#cbd5e1"
+_AXIS_FONT: str = "Inter, system-ui, sans-serif"
+
+AXIS_ARROW_COLOR: str = "#f59e0b"
+AXIS_ARROW_LENGTH: float = 0.5
+_CONE_SIZEREF_PER_UNIT: float = 10.0
+
+def axes_traces(limit: float = 5.0, role: str = "axes") -> list[go.Scatter3d]:
+    """Three coordinate axes crossing at the origin, as plain Scatter3d traces.
+ 
+    Returns [lines, ticks, labels]:
+      lines   x, y, z axis segments from -limit to +limit
+      ticks   a short tick mark at every integer except 0
+      labels  numbers at the even ticks plus the axis names at the + ends
+      arrows  a cone at each + end
+    """
+    n = int(limit)
+    meta = { "grapher": { "role": role } }
+    common = dict(hoverinfo="skip", showlegend=False, meta=meta)
+
+    lines = go.Scatter3d(
+        x = [-limit, limit - 0.05, None, 0, 0, None, 0, 0],
+        y = [0, 0, None, -limit, limit - 0.05, None, 0, 0],
+        z = [0, 0, None, 0, 0, None, -limit, limit - 0.05],
+        mode = "lines",
+        line = dict(color=AXIS_LINE_COLOR, width=4),
+        **common,
+    )
+
+    h = 0.08 * limit / 5
+    tx, ty, tz = [], [], []
+    for i in range(-n, n + 1):
+        if i == 0 or i == n:
+            continue
+        tx += [i, i, None]; ty += [0, 0, None]; tz += [-h, h, None]
+        tx += [0, 0, None]; ty += [i, i, None]; tz += [-h, h, None]
+        tx += [-h, h, None]; ty += [0, 0, None]; tz += [i, i, None]
+
+    ticks = go.Scatter3d(
+        x=tx, y=ty, z=tz,
+        mode = "lines",
+        line = dict(color=AXIS_LINE_COLOR, width=2),
+        **common,
+    )
+
+    lx, ly, lz, lt = [], [], [], []
+    for i in range(-n, n + 1):
+        if i == 0 or i % 2:
+            continue
+        for (px, py, pz) in ((i, 0, 0), (0, i, 0), (0, 0, i)):
+            lx.append(px); ly.append(py); lz.append(pz); lt.append(str(i))
+
+    numbers = go.Scatter3d(
+        x=lx, y=ly, z=lz,
+        mode = "text",
+        text = lt,
+        textposition = "bottom center",
+        textfont = dict(color=AXIS_TICK_COLOR, size=10, family=_AXIS_FONT),
+        **common,
+    )
+
+    names = go.Scatter3d(
+        x=[limit, 0, 0], y=[0, limit, 0], z=[0, 0, limit],
+        mode = "text",
+        text = ["x", "y", "z"],
+        textposition = "top center",
+        textfont = dict(color=AXIS_TITLE_COLOR, size=14, family=_AXIS_FONT),
+        **common,
+    )
+
+    arrows = go.Cone(
+        x=[limit, 0, 0,], y=[0, limit, 0], z=[0, 0, limit],
+        u=[1, 0, 0], v=[0, 1, 0], w=[0, 0, 1],
+        anchor = "tip",
+        sizemode = "absolute",
+        sizeref = AXIS_ARROW_LENGTH / _CONE_SIZEREF_PER_UNIT,
+        colorscale = [[0, AXIS_ARROW_COLOR], [1, AXIS_ARROW_COLOR]],
+        showscale = False,
+        lighting = dict(ambient=1, diffuse=0, specular=0, fresnel=0),
+        **common,
+    )
+
+    return [lines, ticks, numbers, names, arrows]
+
 def _grapher_meta(kind: str, system: Optional[str] = None, **extra) -> dict:
     """Opaque ``meta.grapher`` dict read by the browser-side interaction layer.
 
@@ -54,7 +140,6 @@ def _grapher_meta(kind: str, system: Optional[str] = None, **extra) -> dict:
         meta["system"] = system
     meta.update(extra)
     return {"grapher": meta}
-
 
 
 class Renderer:

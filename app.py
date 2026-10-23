@@ -21,8 +21,8 @@ from flask import jsonify
 
 from parser import parse_curve_text, parse_equation_text
 import plotly.graph_objects as go
-from interaction import ROLE_BOUNDS, ROLE_MATH, layout_meta
-from render import Renderer
+from interaction import ROLE_AXES, ROLE_BOUNDS, ROLE_MATH, layout_meta
+from render import Renderer, axes_traces
 from sampler import sample_equation
 from timing import timer
 from validation import InternalParseException, ParseException
@@ -67,37 +67,42 @@ _ALIAS_MAP: Dict[str, str] = {
 }
 
 _AXIS = dict(
-    backgroundcolor="#090d1c",
-    gridcolor="rgba(74, 90, 114, 0.22)",
-    showbackground=True,
-    zerolinecolor="rgba(245, 158, 11, 0.5)",
-    zerolinewidth=2,
-    tickfont=dict(
-        color="#4a5a72",
-        size=10,
-        family="Inter, system-ui, sans-serif",
-    ),
-    title=dict(font=dict(
-        color="#8b9fc0",
-        size=12,
-        family="Inter, system-ui, sans-serif",
-    )),
-    showgrid=True,
-    zeroline=True,
-    showspikes=True,
-    spikecolor="#f59e0b",
-    spikethickness=1,
+    visible=False,
+    showspikes=False,
 )
+
+# _AXIS = dict(
+#     backgroundcolor="#090d1c",
+#     gridcolor="rgba(74, 90, 114, 0.22)",
+#     showbackground=True,
+#     zerolinecolor="rgba(245, 158, 11, 0.5)",
+#     zerolinewidth=2,
+#     tickfont=dict(
+#         color="#4a5a72",
+#         size=10,
+#         family="Inter, system-ui, sans-serif",
+#     ),
+#     title=dict(font=dict(
+#         color="#8b9fc0",
+#         size=12,
+#         family="Inter, system-ui, sans-serif",
+#     )),
+#     showgrid=True,
+#     zeroline=True,
+#     showspikes=True,
+#     spikecolor="#f59e0b",
+#     spikethickness=1,
+# )
 
 _SAMPLE_CACHE_SIZE = 32
 
 _SURFACE_PALETTES = [
-    [[0.0, "#140e00"], [0.35, "#92580a"], [0.65, "#f59e0b"], [1.0, "#fef3c7"]],
     [[0.0, "#04091f"], [0.35, "#1641a0"], [0.65, "#3b82f6"], [1.0, "#dbeafe"]],
     [[0.0, "#011613"], [0.35, "#0e7370"], [0.65, "#2dd4bf"], [1.0, "#ccfbf1"]],
     [[0.0, "#18040e"], [0.35, "#9e1239"], [0.65, "#fb7185"], [1.0, "#ffe4e6"]],
     [[0.0, "#0c061e"], [0.35, "#5b21b6"], [0.65, "#a78bfa"], [1.0, "#ede9fe"]],
     [[0.0, "#081202"], [0.35, "#3f6212"], [0.65, "#a3e635"], [1.0, "#ecfccb"]],
+    [[0.0, "#140e00"], [0.35, "#92580a"], [0.65, "#f59e0b"], [1.0, "#fef3c7"]],
 ]
 
 _GREEK_NAMES = [
@@ -401,6 +406,8 @@ def update_graph(objects, visibility):
             meta={"grapher": {"role": ROLE_BOUNDS}},
         )
     )
+    for axis_trace in axes_traces(5, role=ROLE_AXES):
+        fig.add_trace(axis_trace)
     renderer = Renderer()
     trace_idx = 0
 
@@ -497,7 +504,8 @@ def update_graph(objects, visibility):
             yaxis=dict(**_AXIS, range=[-5, 5]),
             zaxis=dict(**_AXIS, range=[-5, 5]),
             aspectmode="cube",
-            aspectratio=dict(x=1, y=1, z=1)
+            aspectratio=dict(x=1, y=1, z=1),
+            camera=dict(eye=dict(x=1.0, y=1.0, z=1.0))
         ),
         hoverlabel=dict(
             bgcolor="#131e30",
@@ -689,6 +697,7 @@ app.clientside_callback(
             "tita": "\\\\theta",
             "fi": "\\\\varphi",
             "phi": "\\\\varphi",
+            "sen": "\\\\sin"
         };
 
         return window.dash_clientside.no_update;
@@ -800,4 +809,4 @@ app.clientside_callback(
 app.title = "Graficador"
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=False)
